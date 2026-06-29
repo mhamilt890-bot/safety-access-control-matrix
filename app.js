@@ -13,6 +13,8 @@ const eventCategories = [
   "Repeat Unsafe Conduct"
 ];
 
+const savedRecordsKey = "safetyAccessSubmittedRecords";
+
 const workers = [
   {
     id: "BADGE-1047",
@@ -253,6 +255,8 @@ workers.forEach((worker) => {
   });
 });
 
+loadSubmittedRecords();
+
 function chipClass(value) {
   if (value.includes("Revoked") || value === "Banned From Site" || value === "Critical") return "red";
   if (value.includes("Restricted") || value.includes("Pending") || value === "Under Review" || value === "Suspended" || value === "High") return "orange";
@@ -331,9 +335,21 @@ function renderCharts() {
 }
 
 function renderFilters() {
+  const filterLabels = {
+    statusFilter: "All access statuses",
+    contractorFilter: "All contractors",
+    severityFilter: "All severities",
+    utilityFilter: "All utility customers",
+    projectFilter: "All projects / sites",
+    incidentTypeFilter: "All incident types",
+    bannedFilter: "All banned statuses"
+  };
   const addOptions = (id, values) => {
     const select = document.getElementById(id);
+    const selected = select.value;
+    select.innerHTML = `<option value="">${filterLabels[id]}</option>`;
     select.innerHTML += [...new Set(values)].sort().map((value) => `<option value="${value}">${value}</option>`).join("");
+    select.value = [...select.options].some((option) => option.value === selected) ? selected : "";
   };
   addOptions("statusFilter", workers.map((w) => w.access));
   addOptions("contractorFilter", workers.map((w) => w.contractor));
@@ -343,6 +359,20 @@ function renderFilters() {
   addOptions("incidentTypeFilter", workers.map((w) => w.type));
   addOptions("bannedFilter", workers.map((w) => w.banned));
   document.getElementById("eventCategorySelect").innerHTML = eventCategories.map((category) => `<option>${category}</option>`).join("");
+}
+
+function renderAll() {
+  renderKpis();
+  renderFilters();
+  renderCharts();
+  renderMatrix();
+  renderAlerts();
+  renderWorkflow();
+  renderRecordLists();
+  renderIncidents();
+  renderCorrective();
+  renderReports();
+  renderNotifications();
 }
 
 function activeWorkers() {
@@ -434,11 +464,11 @@ function addMockRecord() {
   const next = workers.length + 1001;
   const worker = {
     id: `BADGE-${next}`,
-    name: `Mock Worker ${next}`,
+    name: `Access Review Worker ${next}`,
     source: "Union Hall Dispatch",
     contractor: "Ward Electric",
     priorContractor: "N/A",
-    project: "Mock Deployment Review Site",
+    project: "Access Review Deployment Site",
     priorProject: "N/A",
     date: "2026-06-29",
     type: "Repeat Unsafe Conduct",
@@ -457,26 +487,91 @@ function addMockRecord() {
     jobClass: "Field Craft",
     banned: "No",
     disposition: "Pending",
-    notes: "Mock record added from the prototype UI to demonstrate new-record flow.",
+    notes: "Access review record added from the prototype UI to demonstrate new-record flow.",
     stopWork: "No",
     removedFromSite: "No",
     utilityRestriction: "No",
     rca: "Open",
     correctiveStatus: "Open",
     reDispatchConcern: "Monitor",
-    managementReview: "Active"
+    managementReview: "Active",
+    submitted: true
   };
   workers.unshift(worker);
-  renderKpis();
-  renderCharts();
-  renderMatrix();
-  renderAlerts();
-  renderWorkflow();
-  renderRecordLists();
-  renderIncidents();
-  renderCorrective();
-  renderReports();
-  renderNotifications();
+  saveSubmittedRecords();
+  renderAll();
+}
+
+function loadSubmittedRecords() {
+  try {
+    const savedRecords = JSON.parse(localStorage.getItem(savedRecordsKey) || "[]");
+    if (Array.isArray(savedRecords)) {
+      workers.unshift(...savedRecords);
+    }
+  } catch (error) {
+    console.warn("Unable to load submitted safety access records.", error);
+  }
+}
+
+function saveSubmittedRecords() {
+  localStorage.setItem(savedRecordsKey, JSON.stringify(workers.filter((worker) => worker.submitted)));
+}
+
+function submittedRecordFromForm(form) {
+  const data = Object.fromEntries(new FormData(form).entries());
+  const today = new Date().toISOString().slice(0, 10);
+  const accessByAction = {
+    "Temporary Pending Review": ["Under Review", "Temporary pending review", "Pending"],
+    "No Restriction Pending Facts": ["Clear", "None pending fact review", "Pending"],
+    "Site-Specific Restriction": ["Restricted", "Site-specific restriction pending review", "Restricted duties"]
+  };
+  const [access, scope, disposition] = accessByAction[data.accessAction] || accessByAction["Temporary Pending Review"];
+
+  return {
+    id: data.badgeId.trim() || `BADGE-${Date.now()}`,
+    name: data.workerName.trim() || "New Worker",
+    source: "Intake Form",
+    contractor: data.contractor,
+    priorContractor: "N/A",
+    project: "Pending assignment",
+    priorProject: "N/A",
+    date: data.eventDate || today,
+    type: data.eventCategory,
+    severity: data.severity,
+    sif: data.sif,
+    investigation: "Event Reported",
+    evidence: "Partial",
+    access,
+    scope,
+    action: "Safety review, contractor response, and corrective action determination",
+    reinstatement: today,
+    authority: "Access Review Committee",
+    updated: today,
+    repeat: false,
+    utility: "Xcel Energy",
+    jobClass: "Pending review",
+    banned: "No",
+    disposition,
+    notes: data.eventSummary.trim() || "Submitted for review.",
+    stopWork: ["High", "Critical"].includes(data.severity) || ["High", "Critical"].includes(data.sif) ? "Yes" : "No",
+    removedFromSite: access === "Restricted" ? "Yes" : "No",
+    utilityRestriction: "No",
+    rca: "Open",
+    correctiveStatus: "Open",
+    reDispatchConcern: "Monitor",
+    managementReview: "Active",
+    submitted: true
+  };
+}
+
+function submitForReview(event) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  workers.unshift(submittedRecordFromForm(form));
+  saveSubmittedRecords();
+  renderAll();
+  document.getElementById("submissionMessage").textContent = "Record submitted for review.";
+  switchPage("matrix");
 }
 
 function renderNotifications() {
@@ -522,17 +617,7 @@ function exportCsv() {
 }
 
 function init() {
-  renderKpis();
-  renderFilters();
-  renderCharts();
-  renderMatrix();
-  renderAlerts();
-  renderWorkflow();
-  renderRecordLists();
-  renderIncidents();
-  renderCorrective();
-  renderReports();
-  renderNotifications();
+  renderAll();
   renderAudit();
   renderAdmin();
 
@@ -560,7 +645,7 @@ function init() {
   document.getElementById("reportPdfExport").addEventListener("click", () => window.print());
   document.getElementById("printReport").addEventListener("click", () => window.print());
   document.getElementById("addMockRecord").addEventListener("click", addMockRecord);
-  document.querySelectorAll("button").forEach((button) => { if (button.textContent.trim() === "Submit for Review") button.addEventListener("click", addMockRecord); });
+  document.getElementById("intakeForm").addEventListener("submit", submitForReview);
   window.addEventListener("resize", renderCharts);
 }
 
