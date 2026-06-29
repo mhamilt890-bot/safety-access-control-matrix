@@ -82,7 +82,7 @@ Do not upload generated folders unless your host requires them. The `dist` folde
 2. Confirm the Dashboard loads with KPI cards and charts.
 3. Open Worker Matrix and confirm worker rows display.
 4. Use Search and filters for contractor, project, utility customer, status, severity, incident type, and banned status.
-5. Click Add Mock Record and confirm a new worker record appears.
+5. Click Add Access Review Record and confirm a new worker record appears.
 6. Open Incident Records, Restricted / Banned List, Corrective Actions, Reports, and Settings / Roles.
 7. Click CSV Export and confirm a `.csv` file downloads.
 8. Open Reports and use PDF / Print Report to save a PDF through the browser print dialog.
