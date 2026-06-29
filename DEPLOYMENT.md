@@ -80,17 +80,17 @@ Do not upload generated folders unless your host requires them. The `dist` folde
 
 1. Open the deployed URL in Chrome or Microsoft Edge.
 2. Confirm the Dashboard loads with KPI cards and charts.
-3. Open Worker Matrix and confirm the clean empty-state message displays before any records are entered.
+3. Open Worker Matrix and confirm imported source audit records display without fabricated worker names.
 4. Click Add Access Review Record, complete the Serious Event Intake form, and submit the record for review.
-5. Confirm the submitted record appears in Worker Matrix and Incident Records.
-6. Refresh the browser and confirm the submitted record persists.
+5. Confirm the submitted browser-entered record appears in Worker Matrix and Incident Records along with imported source records.
+6. Refresh the browser and confirm the submitted browser-entered record persists.
 7. Use Search and filters for contractor, project, utility customer, status, severity, incident type, and banned status.
 8. Open Restricted / Banned List, Corrective Actions, Reports, and Settings / Roles.
 9. Click CSV Export and confirm a `.csv` file downloads.
 10. Open Reports and use PDF / Print Report to save a PDF through the browser print dialog.
-11. Test Clear All Local Records under Settings / Roles and confirm it asks before clearing.
+11. Test Clear All Local Records under Settings / Roles and confirm it asks before clearing browser-entered records only.
 12. Test the site on a phone-sized browser window and confirm navigation and tables remain usable.
 
 ## Storage Note
 
-This version starts with no preloaded worker or incident records. Submitted records are saved in the browser's `localStorage`, so they persist on refresh for that browser only. It is not connected to a shared multi-user database yet.
+This version includes production seed records prepared from project source files, including the proposed findings, corrective action, field verification, contractor, and OSHA reference CSVs. Submitted browser-entered records are saved in the browser's `localStorage`, so they persist on refresh for that browser only. It is not connected to a shared multi-user database yet. Clear All Local Records removes only browser-entered localStorage records, not imported source audit records.
