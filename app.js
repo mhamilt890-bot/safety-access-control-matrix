@@ -560,6 +560,7 @@ function init() {
   document.getElementById("reportPdfExport").addEventListener("click", () => window.print());
   document.getElementById("printReport").addEventListener("click", () => window.print());
   document.getElementById("addMockRecord").addEventListener("click", addMockRecord);
+  document.querySelectorAll("button").forEach((button) => { if (button.textContent.trim() === "Submit for Review") button.addEventListener("click", addMockRecord); });
   window.addEventListener("resize", renderCharts);
 }
 
