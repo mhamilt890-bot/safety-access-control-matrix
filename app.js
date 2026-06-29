@@ -213,10 +213,50 @@ const rolePermissions = [
   ["Legal / Labor Relations", "Due-process notes, substantiation status, appeal documentation"]
 ];
 
+const workerDetails = {
+  "BADGE-1047": ["Xcel Energy", "Journeyman Lineman", "Yes", "Owner-wide revocation pending executive reinstatement", "Repeat SIF-potential minimum approach distance violation after documented coaching"],
+  "BADGE-0872": ["Xcel Energy", "Helicopter Lineworker", "No", "Cleared with conditions", "Restricted from crane-zone work until lift-plan refresher is verified"],
+  "BADGE-1421": ["Xcel Energy", "Equipment Operator", "No", "Pending", "Contractor response and trench competent-person documentation requested"],
+  "BADGE-1163": ["Xcel Energy", "Foundation Foreman", "No", "Restricted duties", "Documentation falsification review requires audit sampling before full restoration"],
+  "BADGE-0996": ["Xcel Energy", "Substation Technician", "No", "No restriction", "Unsubstantiated after evidence and witness review"],
+  "BADGE-1510": ["Xcel Energy", "Groundman", "No", "Eligible after review", "Reinstatement requires 30-day observation plan closeout"],
+  "BADGE-1622": ["Xcel Energy", "Heavy Equipment Operator", "No", "Pending", "Equipment operation hold while telematics and observer statements are reviewed"],
+  "BADGE-1714": ["Xcel Energy", "Journeyman Lineman", "No", "Cleared", "Completed fall protection refresher and supervisor observation"]
+};
+
+workers.forEach((worker) => {
+  const [utility, jobClass, banned, disposition, notes] = workerDetails[worker.id] || ["Xcel Energy", "Field Craft", "No", "Pending", "Mock worker record for prototype review"];
+  const legacyAccess = worker.access;
+  const accessLabel = {
+    "Cleared": "Clear",
+    "Pending Review": "Under Review",
+    "Restricted": "Restricted",
+    "Cleared With Conditions": "Monitor",
+    "Owner-Wide Access Revoked": "Banned From Site",
+    "Unsubstantiated / No Restriction": "Clear"
+  }[legacyAccess] || legacyAccess;
+  Object.assign(worker, {
+    legacyAccess,
+    access: accessLabel,
+    utility,
+    jobClass,
+    banned: legacyAccess.includes("Revoked") ? "Yes" : banned,
+    disposition,
+    notes,
+    stopWork: worker.severity === "Critical" || worker.sif === "Critical" ? "Yes" : "No",
+    removedFromSite: legacyAccess.includes("Revoked") || accessLabel === "Restricted" ? "Yes" : "No",
+    utilityRestriction: legacyAccess.includes("Revoked") ? "Yes" : "No",
+    rca: worker.evidence === "Complete" ? "In Review" : "Open",
+    correctiveStatus: worker.investigation.includes("Closed") ? "Verified" : "Open",
+    reDispatchConcern: worker.repeat || legacyAccess.includes("Revoked") ? "Yes" : "Monitor",
+    managementReview: worker.investigation === "Closed" ? "Complete" : "Active"
+  });
+});
+
 function chipClass(value) {
-  if (value.includes("Revoked") || value === "Critical") return "red";
-  if (value.includes("Restricted") || value.includes("Pending") || value === "High") return "orange";
-  if (value.includes("Cleared") || value === "Complete" || value === "Low") return "green";
+  if (value.includes("Revoked") || value === "Banned From Site" || value === "Critical") return "red";
+  if (value.includes("Restricted") || value.includes("Pending") || value === "Under Review" || value === "Suspended" || value === "High") return "orange";
+  if (value.includes("Clear") || value === "Complete" || value === "Low" || value === "Verified") return "green";
   if (value === "Moderate") return "blue";
   return "gray";
 }
@@ -231,12 +271,13 @@ function countWhere(predicate) {
 
 function renderKpis() {
   const kpis = [
-    ["Pending Reviews", countWhere((w) => w.access === "Pending Review"), "Needs due-process review"],
-    ["Active Restrictions", countWhere((w) => w.access === "Restricted"), "Site or task restrictions"],
-    ["Owner-Wide Access Revoked", countWhere((w) => w.access === "Owner-Wide Access Revoked"), "Executive authority only"],
-    ["Cleared With Conditions", countWhere((w) => w.access === "Cleared With Conditions"), "Conditions must be tracked"],
-    ["Repeat Serious Events", countWhere((w) => w.repeat), "Substantiated repeat pattern"],
-    ["Reinstatement Reviews Due", countWhere((w) => w.reinstatement !== "N/A" && w.reinstatement <= "2026-07-20"), "Next 30 days"]
+    ["Total Active Workers", workers.length, "Prototype worker records"],
+    ["Workers Under Review", countWhere((w) => w.access === "Under Review"), "Needs due-process review"],
+    ["Restricted Access Count", countWhere((w) => w.access === "Restricted"), "Site or task restrictions"],
+    ["Banned From Site Count", countWhere((w) => w.banned === "Yes" || w.access === "Banned From Site"), "Executive authority only"],
+    ["Open Corrective Actions", countWhere((w) => w.correctiveStatus === "Open"), "Assigned or pending verification"],
+    ["High-Severity Incidents", countWhere((w) => ["High", "Critical"].includes(w.severity)), "High, serious, or SIF potential"],
+    ["Upcoming Review Dates", countWhere((w) => w.reinstatement !== "N/A" && w.reinstatement <= "2026-07-20"), "Next 30 days"]
   ];
 
   document.getElementById("kpiGrid").innerHTML = kpis
@@ -297,6 +338,10 @@ function renderFilters() {
   addOptions("statusFilter", workers.map((w) => w.access));
   addOptions("contractorFilter", workers.map((w) => w.contractor));
   addOptions("severityFilter", workers.map((w) => w.severity));
+  addOptions("utilityFilter", workers.map((w) => w.utility));
+  addOptions("projectFilter", workers.map((w) => w.project));
+  addOptions("incidentTypeFilter", workers.map((w) => w.type));
+  addOptions("bannedFilter", workers.map((w) => w.banned));
   document.getElementById("eventCategorySelect").innerHTML = eventCategories.map((category) => `<option>${category}</option>`).join("");
 }
 
@@ -305,9 +350,13 @@ function activeWorkers() {
   const status = document.getElementById("statusFilter").value;
   const contractor = document.getElementById("contractorFilter").value;
   const severity = document.getElementById("severityFilter").value;
+  const utility = document.getElementById("utilityFilter").value;
+  const project = document.getElementById("projectFilter").value;
+  const incidentType = document.getElementById("incidentTypeFilter").value;
+  const banned = document.getElementById("bannedFilter").value;
   return workers.filter((worker) => {
     const searchable = Object.values(worker).join(" ").toLowerCase();
-    return (!text || searchable.includes(text)) && (!status || worker.access === status) && (!contractor || worker.contractor === contractor) && (!severity || worker.severity === severity);
+    return (!text || searchable.includes(text)) && (!status || worker.access === status) && (!contractor || worker.contractor === contractor) && (!severity || worker.severity === severity) && (!utility || worker.utility === utility) && (!project || worker.project === project) && (!incidentType || worker.type === incidentType) && (!banned || worker.banned === banned);
   });
 }
 
@@ -316,9 +365,9 @@ function renderMatrix() {
     .map(
       (w) => `<tr>
         <td>${w.id}</td><td><strong>${w.name}</strong></td><td>${w.source}</td><td>${w.contractor}</td><td>${w.priorContractor}</td>
-        <td>${w.project}</td><td>${w.priorProject}</td><td>${w.date}</td><td>${w.type}</td><td>${chip(w.severity)}</td>
-        <td>${chip(w.sif)}</td><td>${w.investigation}</td><td>${chip(w.evidence)}</td><td>${chip(w.access)}</td><td>${w.scope}</td>
-        <td>${w.action}</td><td>${w.reinstatement}</td><td>${w.authority}</td><td>${w.updated}</td>
+        <td>${w.project}</td><td>${w.utility}</td><td>${w.jobClass}</td><td>${w.priorProject}</td><td>${w.date}</td><td>${w.type}</td><td>${chip(w.severity)}</td>
+        <td>${chip(w.sif)}</td><td>${w.investigation}</td><td>${chip(w.evidence)}</td><td>${chip(w.access)}</td><td>${chip(w.banned)}</td><td>${w.scope}</td>
+        <td>${w.action}</td><td>${w.reinstatement}</td><td>${w.authority}</td><td>${w.disposition}</td><td>${w.notes}</td><td>${w.updated}</td>
       </tr>`
     )
     .join("");
@@ -344,7 +393,7 @@ function renderWorkflow() {
 
 function renderRecordLists() {
   document.getElementById("restrictedList").innerHTML = workers
-    .filter((w) => w.access === "Restricted" || w.access === "Owner-Wide Access Revoked")
+    .filter((w) => w.access === "Restricted" || w.access === "Banned From Site" || w.banned === "Yes")
     .map((w) => `<div class="record-item"><div><strong>${w.name}</strong><div class="meta">${w.id} | ${w.contractor}</div></div><div>${w.scope}<div class="meta">${w.action}</div></div><div>${chip(w.access)}</div></div>`)
     .join("");
 
@@ -355,8 +404,83 @@ function renderRecordLists() {
     .join("");
 }
 
+function renderIncidents() {
+  document.getElementById("incidentList").innerHTML = activeWorkers()
+    .map((w) => `<div class="record-item"><div><strong>${w.date} | ${w.type}</strong><div class="meta">${w.name} | ${w.contractor} | ${w.project}</div></div><div>${w.notes}<div class="meta">Stop work: ${w.stopWork} | Removed from site: ${w.removedFromSite} | Utility restriction: ${w.utilityRestriction}</div><div class="meta">RCA: ${w.rca} | Corrective action: ${w.correctiveStatus} | Re-dispatch concern: ${w.reDispatchConcern}</div></div><div>${chip(w.managementReview)}</div></div>`)
+    .join("");
+}
+
+function renderCorrective() {
+  document.getElementById("correctiveList").innerHTML = activeWorkers()
+    .filter((w) => w.correctiveStatus === "Open" || w.access === "Monitor")
+    .map((w) => `<div class="record-item"><div><strong>${w.action}</strong><div class="meta">${w.name} | Owner: ${w.authority}</div></div><div>Due / review date: ${w.reinstatement}<div class="meta">Access impact: ${w.access} | Evidence: ${w.evidence}</div></div><div>${chip(w.correctiveStatus)}</div></div>`)
+    .join("");
+}
+
+function renderReports() {
+  const current = activeWorkers();
+  const items = [
+    ["Filtered worker records", current.length],
+    ["Under review", current.filter((w) => w.access === "Under Review").length],
+    ["Restricted or banned", current.filter((w) => w.access === "Restricted" || w.access === "Banned From Site").length],
+    ["Banned from site", current.filter((w) => w.banned === "Yes" || w.access === "Banned From Site").length],
+    ["Open corrective actions", current.filter((w) => w.correctiveStatus === "Open").length],
+    ["High or critical severity", current.filter((w) => ["High", "Critical"].includes(w.severity)).length]
+  ];
+  document.getElementById("reportSummary").innerHTML = items.map(([label, value]) => `<div class="summary-item"><span>${label}</span><strong>${value}</strong></div>`).join("");
+}
+
+function addMockRecord() {
+  const next = workers.length + 1001;
+  const worker = {
+    id: `BADGE-${next}`,
+    name: `Mock Worker ${next}`,
+    source: "Union Hall Dispatch",
+    contractor: "Ward Electric",
+    priorContractor: "N/A",
+    project: "Mock Deployment Review Site",
+    priorProject: "N/A",
+    date: "2026-06-29",
+    type: "Repeat Unsafe Conduct",
+    severity: "High",
+    sif: "High",
+    investigation: "Event Reported",
+    evidence: "Partial",
+    access: "Under Review",
+    scope: "Temporary pending review",
+    action: "Management review and documented coaching",
+    reinstatement: "2026-07-29",
+    authority: "Safety Manager",
+    updated: "2026-06-29",
+    repeat: false,
+    utility: "Xcel Energy",
+    jobClass: "Field Craft",
+    banned: "No",
+    disposition: "Pending",
+    notes: "Mock record added from the prototype UI to demonstrate new-record flow.",
+    stopWork: "No",
+    removedFromSite: "No",
+    utilityRestriction: "No",
+    rca: "Open",
+    correctiveStatus: "Open",
+    reDispatchConcern: "Monitor",
+    managementReview: "Active"
+  };
+  workers.unshift(worker);
+  renderKpis();
+  renderCharts();
+  renderMatrix();
+  renderAlerts();
+  renderWorkflow();
+  renderRecordLists();
+  renderIncidents();
+  renderCorrective();
+  renderReports();
+  renderNotifications();
+}
+
 function renderNotifications() {
-  const notices = workers.filter((w) => ["Pending Review", "Restricted", "Cleared With Conditions"].includes(w.access)).slice(0, 6);
+  const notices = workers.filter((w) => ["Under Review", "Restricted", "Monitor", "Banned From Site"].includes(w.access)).slice(0, 6);
   document.getElementById("notificationGrid").innerHTML = notices
     .map((w) => `<article class="notification-card"><strong>${w.contractor}</strong><div class="meta">${w.name} | ${w.id}</div>${chip(w.access)}<textarea readonly>Notice: ${w.investigation}. Please provide contractor response, corrective-action evidence, and supervisor acknowledgement for ${w.type}.</textarea><button class="ghost-btn">Queue Notice</button></article>`)
     .join("");
@@ -385,8 +509,8 @@ function switchPage(pageId) {
 }
 
 function exportCsv() {
-  const headers = ["Worker ID", "Worker Name", "Contractor", "Event Date", "Event Type", "Severity", "SIF Potential", "Investigation Status", "Evidence Status", "Access Status", "Restriction Scope", "Corrective Action", "Reinstatement Date", "Decision Authority", "Last Updated"];
-  const rows = activeWorkers().map((w) => [w.id, w.name, w.contractor, w.date, w.type, w.severity, w.sif, w.investigation, w.evidence, w.access, w.scope, w.action, w.reinstatement, w.authority, w.updated]);
+  const headers = ["Worker ID", "Worker Name", "Contractor", "Union Hall / Dispatch Source", "Project / Site", "Utility Customer", "Job Classification", "Event Date", "Incident Type", "Severity", "SIF Potential", "Investigation Status", "Evidence Status", "Access Status", "Banned From Site", "Restriction Scope", "Corrective Action", "Corrective Action Owner", "Review Date", "Final Disposition", "Notes", "Last Updated"];
+  const rows = activeWorkers().map((w) => [w.id, w.name, w.contractor, w.source, w.project, w.utility, w.jobClass, w.date, w.type, w.severity, w.sif, w.investigation, w.evidence, w.access, w.banned, w.scope, w.action, w.authority, w.reinstatement, w.disposition, w.notes, w.updated]);
   const csv = [headers, ...rows].map((row) => row.map((cell) => `"${String(cell).replaceAll('"', '""')}"`).join(",")).join("\n");
   const blob = new Blob([csv], { type: "text/csv" });
   const url = URL.createObjectURL(blob);
@@ -405,6 +529,9 @@ function init() {
   renderAlerts();
   renderWorkflow();
   renderRecordLists();
+  renderIncidents();
+  renderCorrective();
+  renderReports();
   renderNotifications();
   renderAudit();
   renderAdmin();
@@ -412,15 +539,27 @@ function init() {
   document.querySelectorAll("[data-page], [data-page-link]").forEach((button) => {
     button.addEventListener("click", () => switchPage(button.dataset.page || button.dataset.pageLink));
   });
-  ["globalSearch", "statusFilter", "contractorFilter", "severityFilter"].forEach((id) => document.getElementById(id).addEventListener("input", renderMatrix));
+  ["globalSearch", "statusFilter", "contractorFilter", "severityFilter", "utilityFilter", "projectFilter", "incidentTypeFilter", "bannedFilter"].forEach((id) => document.getElementById(id).addEventListener("input", () => {
+    renderMatrix();
+    renderIncidents();
+    renderCorrective();
+    renderReports();
+  }));
   document.getElementById("clearFilters").addEventListener("click", () => {
-    document.getElementById("statusFilter").value = "";
-    document.getElementById("contractorFilter").value = "";
-    document.getElementById("severityFilter").value = "";
+    ["statusFilter", "contractorFilter", "severityFilter", "utilityFilter", "projectFilter", "incidentTypeFilter", "bannedFilter"].forEach((id) => {
+      document.getElementById(id).value = "";
+    });
     document.getElementById("globalSearch").value = "";
     renderMatrix();
+    renderIncidents();
+    renderCorrective();
+    renderReports();
   });
   document.getElementById("exportBtn").addEventListener("click", exportCsv);
+  document.getElementById("reportCsvExport").addEventListener("click", exportCsv);
+  document.getElementById("reportPdfExport").addEventListener("click", () => window.print());
+  document.getElementById("printReport").addEventListener("click", () => window.print());
+  document.getElementById("addMockRecord").addEventListener("click", addMockRecord);
   window.addEventListener("resize", renderCharts);
 }
 
