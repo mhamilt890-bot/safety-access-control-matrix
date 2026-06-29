@@ -1,0 +1,19 @@
+{
+  "name": "safety-access-control-matrix",
+  "version": "1.0.0",
+  "description": "Browser-based Safety Access Control Matrix tracker for contractor and worker access review.",
+  "private": true,
+  "scripts": {
+    "build": "node build.js",
+    "start": "node server.js",
+    "preview": "node server.js",
+    "verify": "node verify.js"
+  },
+  "keywords": [
+    "safety",
+    "contractor",
+    "access-control",
+    "incident-tracking"
+  ],
+  "license": "UNLICENSED"
+}

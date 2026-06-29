@@ -1,0 +1,278 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Safety Access Control Matrix</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="brand">
+          <div class="brand-mark">SA</div>
+          <div>
+            <strong>Safety Access</strong>
+            <span>Control Matrix</span>
+          </div>
+        </div>
+        <nav class="nav-list" aria-label="Main navigation">
+          <button class="nav-item active" data-page="dashboard">Dashboard</button>
+          <button class="nav-item" data-page="matrix">Worker Matrix</button>
+          <button class="nav-item" data-page="incidents">Incident Records</button>
+          <button class="nav-item" data-page="restricted">Restricted / Banned List</button>
+          <button class="nav-item" data-page="corrective">Corrective Actions</button>
+          <button class="nav-item" data-page="reports">Reports</button>
+          <button class="nav-item" data-page="admin">Settings / Roles</button>
+        </nav>
+        <div class="sidebar-note">
+          <span>Access governance</span>
+          <strong>Evidence-based review, reinstatement, and auditability.</strong>
+        </div>
+      </aside>
+
+      <main class="workspace">
+        <header class="topbar">
+          <div>
+            <h1>Safety Access Control Matrix</h1>
+            <p>Preventing repeat serious safety exposure across contractor workforces through documented review, access control, and reinstatement tracking.</p>
+          </div>
+          <div class="topbar-actions">
+            <label class="search">
+              <span>Search</span>
+              <input id="globalSearch" type="search" placeholder="Worker, contractor, event..." />
+            </label>
+            <button class="ghost-btn" id="exportBtn">Export</button>
+            <button class="primary-btn" data-page-link="intake">New Event</button>
+          </div>
+        </header>
+
+        <section id="dashboard" class="page active-page">
+          <div class="kpi-grid" id="kpiGrid"></div>
+          <div class="dashboard-grid">
+            <article class="panel chart-panel">
+              <div class="panel-heading">
+                <h2>Serious Event Category Breakdown</h2>
+                <span>Last 12 months</span>
+              </div>
+              <canvas id="categoryChart" height="250"></canvas>
+            </article>
+            <article class="panel chart-panel">
+              <div class="panel-heading">
+                <h2>Restriction Status Trend</h2>
+                <span>Quarterly</span>
+              </div>
+              <canvas id="statusChart" height="250"></canvas>
+            </article>
+            <article class="panel chart-panel">
+              <div class="panel-heading">
+                <h2>Repeat Event Trend</h2>
+                <span>Substantiated cases</span>
+              </div>
+              <canvas id="repeatChart" height="250"></canvas>
+            </article>
+            <article class="panel chart-panel">
+              <div class="panel-heading">
+                <h2>Contractor Comparison</h2>
+                <span>SIF-potential events</span>
+              </div>
+              <canvas id="contractorChart" height="250"></canvas>
+            </article>
+          </div>
+          <article class="panel alert-panel">
+            <div class="panel-heading">
+              <h2>High-Risk Alert Panel</h2>
+              <span>Critical SIF potential or repeat substantiated events</span>
+            </div>
+            <div id="alertList" class="alert-list"></div>
+          </article>
+        </section>
+
+        <section id="matrix" class="page">
+          <div class="toolbar">
+            <select id="statusFilter" aria-label="Access status filter">
+              <option value="">All access statuses</option>
+            </select>
+            <select id="contractorFilter" aria-label="Contractor filter">
+              <option value="">All contractors</option>
+            </select>
+            <select id="severityFilter" aria-label="Severity filter">
+              <option value="">All severities</option>
+            </select>
+            <select id="utilityFilter" aria-label="Utility customer filter">
+              <option value="">All utility customers</option>
+            </select>
+            <select id="projectFilter" aria-label="Project filter">
+              <option value="">All projects / sites</option>
+            </select>
+            <select id="incidentTypeFilter" aria-label="Incident type filter">
+              <option value="">All incident types</option>
+            </select>
+            <select id="bannedFilter" aria-label="Banned status filter">
+              <option value="">All banned statuses</option>
+            </select>
+            <button class="ghost-btn" id="clearFilters">Clear Filters</button>
+            <button class="primary-btn" id="addMockRecord">Add Mock Record</button>
+          </div>
+          <div class="table-shell">
+            <table>
+              <thead>
+                <tr>
+                  <th>Worker ID / Badge ID</th>
+                  <th>Worker Name</th>
+                  <th>Union Local / Dispatch Source</th>
+                  <th>Current Contractor</th>
+                  <th>Prior Contractor</th>
+                  <th>Current Project</th>
+                  <th>Utility Customer</th>
+                  <th>Job Classification</th>
+                  <th>Prior Project</th>
+                  <th>Event Date</th>
+                  <th>Event Type</th>
+                  <th>Severity</th>
+                  <th>SIF Potential</th>
+                  <th>Investigation Status</th>
+                  <th>Evidence Status</th>
+                  <th>Access Status</th>
+                  <th>Banned From Site</th>
+                  <th>Restriction Scope</th>
+                  <th>Required Corrective Action</th>
+                  <th>Reinstatement Review Date</th>
+                  <th>Decision Authority</th>
+                  <th>Final Disposition</th>
+                  <th>Notes</th>
+                  <th>Last Updated</th>
+                </tr>
+              </thead>
+              <tbody id="matrixBody"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section id="intake" class="page">
+          <div class="form-layout">
+            <form class="panel intake-form">
+              <div class="panel-heading">
+                <h2>Serious Event Intake</h2>
+                <span>Temporary restrictions require documented review</span>
+              </div>
+              <div class="form-grid">
+                <label>Worker Name<input value="New Worker" /></label>
+                <label>Badge ID<input value="BADGE-1288" /></label>
+                <label>Contractor<select><option>Ward Electric</option><option>PAR</option><option>Q3 Contracting</option><option>Sturgeon Electric</option></select></label>
+                <label>Event Date<input type="date" value="2026-06-29" /></label>
+                <label>Event Category<select id="eventCategorySelect"></select></label>
+                <label>Severity<select><option>Critical</option><option>High</option><option>Moderate</option><option>Low</option></select></label>
+                <label>SIF Potential<select><option>Critical</option><option>High</option><option>Moderate</option><option>Low</option></select></label>
+                <label>Immediate Access Action<select><option>Temporary Pending Review</option><option>No Restriction Pending Facts</option><option>Site-Specific Restriction</option></select></label>
+              </div>
+              <label class="wide-label">Event Summary<textarea>Initial report logged. Facts pending contractor response, witness statements, and safety documentation review.</textarea></label>
+              <div class="upload-zone">
+                <strong>Evidence Upload Placeholder</strong>
+                <span>Photos, statements, switching logs, LOTO forms, training records, and supervisor notes</span>
+              </div>
+              <button type="button" class="primary-btn">Submit for Review</button>
+            </form>
+            <aside class="panel workflow-card">
+              <h2>Intake Guardrails</h2>
+              <p>Every access action is provisional until the investigation record includes evidence, contractor response opportunity, decision authority, and reinstatement path.</p>
+              <ul>
+                <li>Document event source and exact project location.</li>
+                <li>Separate allegation from substantiated findings.</li>
+                <li>Capture corrective action required before reinstatement.</li>
+                <li>Log every notification and decision update.</li>
+              </ul>
+            </aside>
+          </div>
+        </section>
+
+        <section id="review" class="page">
+          <div class="review-board" id="workflowBoard"></div>
+        </section>
+
+        <section id="incidents" class="page">
+          <div class="panel">
+            <div class="panel-heading">
+              <h2>Incident Records</h2>
+              <span>Event facts, immediate actions, evidence, RCA, and management review</span>
+            </div>
+            <div id="incidentList" class="record-list"></div>
+          </div>
+        </section>
+
+        <section id="restricted" class="page">
+          <div class="panel">
+            <div class="panel-heading">
+              <h2>Restricted Access List</h2>
+              <span>Substantiated and currently active restrictions only</span>
+            </div>
+            <div id="restrictedList" class="record-list"></div>
+          </div>
+        </section>
+
+        <section id="reinstatement" class="page">
+          <div class="panel">
+            <div class="panel-heading">
+              <h2>Reinstatement Queue</h2>
+              <span>Reviews due by date, completion evidence, and authority</span>
+            </div>
+            <div id="reinstatementList" class="record-list"></div>
+          </div>
+        </section>
+
+        <section id="notifications" class="page">
+          <div class="notification-grid" id="notificationGrid"></div>
+        </section>
+
+        <section id="corrective" class="page">
+          <div class="panel">
+            <div class="panel-heading">
+              <h2>Corrective Actions</h2>
+              <span>Owner, due date, verification status, and access impact</span>
+            </div>
+            <div id="correctiveList" class="record-list"></div>
+          </div>
+        </section>
+
+        <section id="reports" class="page">
+          <div class="reports-grid">
+            <article class="panel">
+              <div class="panel-heading">
+                <h2>Printable Management Summary</h2>
+                <span>Current filtered view</span>
+              </div>
+              <div id="reportSummary" class="summary-list"></div>
+              <button class="primary-btn" id="printReport">Print Summary</button>
+            </article>
+            <article class="panel">
+              <div class="panel-heading">
+                <h2>Export Options</h2>
+                <span>Prepared for leadership and contractor reviews</span>
+              </div>
+              <div class="export-actions">
+                <button class="ghost-btn" id="reportCsvExport">CSV Export</button>
+                <button class="ghost-btn" id="reportPdfExport">PDF / Print Report</button>
+              </div>
+              <p class="meta">PDF export uses the browser print dialog. Choose "Save as PDF" to create a management report.</p>
+            </article>
+          </div>
+        </section>
+
+        <section id="audit" class="page">
+          <div class="panel">
+            <div class="panel-heading">
+              <h2>Audit Log</h2>
+              <span>Immutable record of review activity</span>
+            </div>
+            <div id="auditLog" class="timeline"></div>
+          </div>
+        </section>
+
+        <section id="admin" class="page">
+          <div class="admin-grid" id="adminGrid"></div>
+        </section>
+      </main>
+    </div>
+    <script src="app.js"></script>
+  </body>
+</html>
