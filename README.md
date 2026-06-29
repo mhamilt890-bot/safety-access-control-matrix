@@ -28,4 +28,4 @@ Use the exact Vercel and Netlify deployment steps in `DEPLOYMENT.md`.
 
 ## Data Storage
 
-This first version uses local mock data in `app.js`. The code is organized so a later version can connect to Supabase, Firebase, PostgreSQL, Airtable, or a company database.
+This version starts with no preloaded worker or incident records. Submitted records are saved in the browser's `localStorage`, so they persist on refresh for that browser only. It is not connected to a shared multi-user database yet.

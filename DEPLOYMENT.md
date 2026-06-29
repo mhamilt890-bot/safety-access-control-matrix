@@ -80,14 +80,17 @@ Do not upload generated folders unless your host requires them. The `dist` folde
 
 1. Open the deployed URL in Chrome or Microsoft Edge.
 2. Confirm the Dashboard loads with KPI cards and charts.
-3. Open Worker Matrix and confirm worker rows display.
-4. Use Search and filters for contractor, project, utility customer, status, severity, incident type, and banned status.
-5. Click Add Access Review Record and confirm a new worker record appears.
-6. Open Incident Records, Restricted / Banned List, Corrective Actions, Reports, and Settings / Roles.
-7. Click CSV Export and confirm a `.csv` file downloads.
-8. Open Reports and use PDF / Print Report to save a PDF through the browser print dialog.
-9. Test the site on a phone-sized browser window and confirm navigation and tables remain usable.
+3. Open Worker Matrix and confirm the clean empty-state message displays before any records are entered.
+4. Click Add Access Review Record, complete the Serious Event Intake form, and submit the record for review.
+5. Confirm the submitted record appears in Worker Matrix and Incident Records.
+6. Refresh the browser and confirm the submitted record persists.
+7. Use Search and filters for contractor, project, utility customer, status, severity, incident type, and banned status.
+8. Open Restricted / Banned List, Corrective Actions, Reports, and Settings / Roles.
+9. Click CSV Export and confirm a `.csv` file downloads.
+10. Open Reports and use PDF / Print Report to save a PDF through the browser print dialog.
+11. Test Clear All Local Records under Settings / Roles and confirm it asks before clearing.
+12. Test the site on a phone-sized browser window and confirm navigation and tables remain usable.
 
 ## Storage Note
 
-The first version uses local mock data in `app.js`. The data layer is intentionally centralized so a later version can connect to Supabase, Firebase, PostgreSQL, Airtable, or a company database.
+This version starts with no preloaded worker or incident records. Submitted records are saved in the browser's `localStorage`, so they persist on refresh for that browser only. It is not connected to a shared multi-user database yet.

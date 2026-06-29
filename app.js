@@ -13,186 +13,9 @@ const eventCategories = [
   "Repeat Unsafe Conduct"
 ];
 
-const savedRecordsKey = "safetyAccessSubmittedRecords";
+const savedRecordsKey = "safetyAccessProductionRecords";
 
-const workers = [
-  {
-    id: "BADGE-1047",
-    name: "Marcus Hale",
-    source: "IBEW Local 111",
-    contractor: "Ward Electric",
-    priorContractor: "Sturgeon Electric",
-    project: "Foothills 230kV Rebuild",
-    priorProject: "North Ridge Substation",
-    date: "2026-06-18",
-    type: "Energized Work / Minimum Approach Distance",
-    severity: "Critical",
-    sif: "Critical",
-    investigation: "Final Access Decision",
-    evidence: "Complete",
-    access: "Owner-Wide Access Revoked",
-    scope: "Owner-controlled projects",
-    action: "Executive safety review, retraining, documented competency review",
-    reinstatement: "2026-09-18",
-    authority: "Director Safety and Operations",
-    updated: "2026-06-28",
-    repeat: true
-  },
-  {
-    id: "BADGE-0872",
-    name: "Elena Ruiz",
-    source: "Union Hall Dispatch",
-    contractor: "PAR",
-    priorContractor: "PAR",
-    project: "Canyon Transmission Patrol",
-    priorProject: "Mesa Tap Repair",
-    date: "2026-06-11",
-    type: "Suspended Load / Crane Zone",
-    severity: "High",
-    sif: "High",
-    investigation: "Corrective Action Assigned",
-    evidence: "Complete",
-    access: "Cleared With Conditions",
-    scope: "Crane zone exclusion until refresher complete",
-    action: "Lift-plan briefing and spotter verification",
-    reinstatement: "2026-07-12",
-    authority: "Regional Safety Manager",
-    updated: "2026-06-26",
-    repeat: false
-  },
-  {
-    id: "BADGE-1421",
-    name: "Derrick Shaw",
-    source: "IBEW Local 68",
-    contractor: "Q3 Contracting",
-    priorContractor: "Ward Electric",
-    project: "Downtown Feeder Civil",
-    priorProject: "West Yard Storm Response",
-    date: "2026-06-07",
-    type: "Excavation / Trenching",
-    severity: "High",
-    sif: "High",
-    investigation: "Contractor Response Requested",
-    evidence: "Partial",
-    access: "Pending Review",
-    scope: "Temporary pending review",
-    action: "Competent person review pending",
-    reinstatement: "2026-07-05",
-    authority: "Access Review Committee",
-    updated: "2026-06-24",
-    repeat: false
-  },
-  {
-    id: "BADGE-1163",
-    name: "Jamal Nguyen",
-    source: "Crux Dispatch",
-    contractor: "Crux Micropiling",
-    priorContractor: "Q3 Contracting",
-    project: "River Crossing Foundation",
-    priorProject: "Prairie Wind Tap",
-    date: "2026-05-26",
-    type: "Falsification of Safety Documentation",
-    severity: "Critical",
-    sif: "High",
-    investigation: "Safety Review Completed",
-    evidence: "Complete",
-    access: "Restricted",
-    scope: "Document control and field lead duties",
-    action: "Ethics acknowledgement, supervisor signoff, audit sampling",
-    reinstatement: "2026-08-01",
-    authority: "Contractor Safety Governance",
-    updated: "2026-06-20",
-    repeat: true
-  },
-  {
-    id: "BADGE-0996",
-    name: "Priya Shah",
-    source: "Sturgeon Direct Hire",
-    contractor: "Sturgeon Electric",
-    priorContractor: "Sturgeon Electric",
-    project: "Airport Substation Upgrade",
-    priorProject: "Airport Substation Upgrade",
-    date: "2026-05-19",
-    type: "Lockout Tagout",
-    severity: "Moderate",
-    sif: "Moderate",
-    investigation: "Closed",
-    evidence: "Complete",
-    access: "Unsubstantiated / No Restriction",
-    scope: "None",
-    action: "No corrective action assigned after review",
-    reinstatement: "N/A",
-    authority: "Site Safety Lead",
-    updated: "2026-06-15",
-    repeat: false
-  },
-  {
-    id: "BADGE-1510",
-    name: "Owen Carter",
-    source: "IBEW Local 111",
-    contractor: "Ward Electric",
-    priorContractor: "PAR",
-    project: "South Loop Distribution",
-    priorProject: "Canyon Transmission Patrol",
-    date: "2026-04-30",
-    type: "Repeat Unsafe Conduct",
-    severity: "High",
-    sif: "Critical",
-    investigation: "Reinstatement Review Scheduled",
-    evidence: "Complete",
-    access: "Restricted",
-    scope: "Site access limited to supervised tasks",
-    action: "30-day observation plan and foreman coaching log",
-    reinstatement: "2026-07-01",
-    authority: "Access Review Committee",
-    updated: "2026-06-22",
-    repeat: true
-  },
-  {
-    id: "BADGE-1622",
-    name: "Nora Blake",
-    source: "Q3 Dispatch",
-    contractor: "Q3 Contracting",
-    priorContractor: "Q3 Contracting",
-    project: "North Metro Gas Joint Trench",
-    priorProject: "Downtown Feeder Civil",
-    date: "2026-06-21",
-    type: "Vehicle / Equipment Operation",
-    severity: "High",
-    sif: "High",
-    investigation: "Evidence Collected",
-    evidence: "Partial",
-    access: "Pending Review",
-    scope: "Equipment operation hold",
-    action: "Telematics review and operator evaluation",
-    reinstatement: "2026-07-20",
-    authority: "Fleet Safety Manager",
-    updated: "2026-06-27",
-    repeat: false
-  },
-  {
-    id: "BADGE-1714",
-    name: "Ty Bennett",
-    source: "PAR Direct Hire",
-    contractor: "PAR",
-    priorContractor: "Ward Electric",
-    project: "Mesa Tap Repair",
-    priorProject: "Foothills 230kV Rebuild",
-    date: "2026-04-14",
-    type: "Fall Protection",
-    severity: "Moderate",
-    sif: "High",
-    investigation: "Closed",
-    evidence: "Complete",
-    access: "Cleared",
-    scope: "None",
-    action: "Completed refresher and supervisor observation",
-    reinstatement: "2026-05-14",
-    authority: "Regional Safety Manager",
-    updated: "2026-05-20",
-    repeat: false
-  }
-];
+const workers = [];
 
 const workflow = [
   "Event Reported",
@@ -215,46 +38,6 @@ const rolePermissions = [
   ["Legal / Labor Relations", "Due-process notes, substantiation status, appeal documentation"]
 ];
 
-const workerDetails = {
-  "BADGE-1047": ["Xcel Energy", "Journeyman Lineman", "Yes", "Owner-wide revocation pending executive reinstatement", "Repeat SIF-potential minimum approach distance violation after documented coaching"],
-  "BADGE-0872": ["Xcel Energy", "Helicopter Lineworker", "No", "Cleared with conditions", "Restricted from crane-zone work until lift-plan refresher is verified"],
-  "BADGE-1421": ["Xcel Energy", "Equipment Operator", "No", "Pending", "Contractor response and trench competent-person documentation requested"],
-  "BADGE-1163": ["Xcel Energy", "Foundation Foreman", "No", "Restricted duties", "Documentation falsification review requires audit sampling before full restoration"],
-  "BADGE-0996": ["Xcel Energy", "Substation Technician", "No", "No restriction", "Unsubstantiated after evidence and witness review"],
-  "BADGE-1510": ["Xcel Energy", "Groundman", "No", "Eligible after review", "Reinstatement requires 30-day observation plan closeout"],
-  "BADGE-1622": ["Xcel Energy", "Heavy Equipment Operator", "No", "Pending", "Equipment operation hold while telematics and observer statements are reviewed"],
-  "BADGE-1714": ["Xcel Energy", "Journeyman Lineman", "No", "Cleared", "Completed fall protection refresher and supervisor observation"]
-};
-
-workers.forEach((worker) => {
-  const [utility, jobClass, banned, disposition, notes] = workerDetails[worker.id] || ["Xcel Energy", "Field Craft", "No", "Pending", "Mock worker record for prototype review"];
-  const legacyAccess = worker.access;
-  const accessLabel = {
-    "Cleared": "Clear",
-    "Pending Review": "Under Review",
-    "Restricted": "Restricted",
-    "Cleared With Conditions": "Monitor",
-    "Owner-Wide Access Revoked": "Banned From Site",
-    "Unsubstantiated / No Restriction": "Clear"
-  }[legacyAccess] || legacyAccess;
-  Object.assign(worker, {
-    legacyAccess,
-    access: accessLabel,
-    utility,
-    jobClass,
-    banned: legacyAccess.includes("Revoked") ? "Yes" : banned,
-    disposition,
-    notes,
-    stopWork: worker.severity === "Critical" || worker.sif === "Critical" ? "Yes" : "No",
-    removedFromSite: legacyAccess.includes("Revoked") || accessLabel === "Restricted" ? "Yes" : "No",
-    utilityRestriction: legacyAccess.includes("Revoked") ? "Yes" : "No",
-    rca: worker.evidence === "Complete" ? "In Review" : "Open",
-    correctiveStatus: worker.investigation.includes("Closed") ? "Verified" : "Open",
-    reDispatchConcern: worker.repeat || legacyAccess.includes("Revoked") ? "Yes" : "Monitor",
-    managementReview: worker.investigation === "Closed" ? "Complete" : "Active"
-  });
-});
-
 loadSubmittedRecords();
 
 function chipClass(value) {
@@ -273,9 +56,17 @@ function countWhere(predicate) {
   return workers.filter(predicate).length;
 }
 
+function emptyState(message) {
+  return `<div class="empty-state">${message}</div>`;
+}
+
+function tableEmptyState(message) {
+  return `<tr><td colspan="24" class="table-empty">${message}</td></tr>`;
+}
+
 function renderKpis() {
   const kpis = [
-    ["Total Active Workers", workers.length, "Prototype worker records"],
+    ["Total Active Workers", workers.length, "Entered access review records"],
     ["Workers Under Review", countWhere((w) => w.access === "Under Review"), "Needs due-process review"],
     ["Restricted Access Count", countWhere((w) => w.access === "Restricted"), "Site or task restrictions"],
     ["Banned From Site Count", countWhere((w) => w.banned === "Yes" || w.access === "Banned From Site"), "Executive authority only"],
@@ -299,6 +90,15 @@ function drawBarChart(canvasId, labels, values, colors) {
   canvas.height = height * ratio;
   context.scale(ratio, ratio);
   context.clearRect(0, 0, width, height);
+
+  if (!values.some((value) => value > 0)) {
+    context.fillStyle = "#657286";
+    context.font = "600 14px Arial";
+    context.textAlign = "center";
+    context.fillText("No access review records entered yet.", width / 2, height / 2);
+    context.textAlign = "start";
+    return;
+  }
 
   const chartHeight = height - 58;
   const max = Math.max(...values, 1);
@@ -328,10 +128,22 @@ function drawBarChart(canvasId, labels, values, colors) {
 }
 
 function renderCharts() {
-  drawBarChart("categoryChart", ["Energized", "Crane Zone", "Trenching", "LOTO", "Repeat", "Vehicle"], [3, 2, 2, 1, 3, 2], ["#2563eb", "#dc2626", "#ea580c"]);
-  drawBarChart("statusChart", ["Q3 25", "Q4 25", "Q1 26", "Q2 26"], [4, 6, 5, 8], ["#2563eb", "#15803d"]);
-  drawBarChart("repeatChart", ["Jan", "Feb", "Mar", "Apr", "May", "Jun"], [1, 1, 2, 2, 3, 3], ["#c2410c"]);
-  drawBarChart("contractorChart", ["Ward", "PAR", "Q3", "Sturgeon", "Crux"], [4, 3, 3, 1, 1], ["#2563eb", "#ea580c", "#15803d", "#64748b"]);
+  const categoryLabels = eventCategories.map((category) => category.split(" / ")[0]);
+  const categoryValues = eventCategories.map((category) => workers.filter((w) => w.type === category).length);
+  const statusLabels = ["Under Review", "Restricted", "Monitor", "Banned From Site", "Clear"];
+  const statusValues = statusLabels.map((status) => workers.filter((w) => w.access === status).length);
+  const severityLabels = ["Low", "Moderate", "High", "Critical"];
+  const severityValues = severityLabels.map((severity) => workers.filter((w) => w.severity === severity).length);
+  const contractorCounts = workers.reduce((counts, worker) => {
+    counts[worker.contractor] = (counts[worker.contractor] || 0) + 1;
+    return counts;
+  }, {});
+  const contractorEntries = Object.entries(contractorCounts).slice(0, 6);
+
+  drawBarChart("categoryChart", categoryLabels, categoryValues, ["#2563eb", "#dc2626", "#ea580c"]);
+  drawBarChart("statusChart", statusLabels, statusValues, ["#2563eb", "#15803d", "#c2410c"]);
+  drawBarChart("repeatChart", severityLabels, severityValues, ["#64748b", "#2563eb", "#ea580c", "#dc2626"]);
+  drawBarChart("contractorChart", contractorEntries.map(([label]) => label), contractorEntries.map(([, value]) => value), ["#2563eb", "#ea580c", "#15803d", "#64748b"]);
 }
 
 function renderFilters() {
@@ -391,7 +203,8 @@ function activeWorkers() {
 }
 
 function renderMatrix() {
-  document.getElementById("matrixBody").innerHTML = activeWorkers()
+  const current = activeWorkers();
+  document.getElementById("matrixBody").innerHTML = current.length ? current
     .map(
       (w) => `<tr>
         <td>${w.id}</td><td><strong>${w.name}</strong></td><td>${w.source}</td><td>${w.contractor}</td><td>${w.priorContractor}</td>
@@ -400,14 +213,14 @@ function renderMatrix() {
         <td>${w.action}</td><td>${w.reinstatement}</td><td>${w.authority}</td><td>${w.disposition}</td><td>${w.notes}</td><td>${w.updated}</td>
       </tr>`
     )
-    .join("");
+    .join("") : tableEmptyState("No access review records entered yet.");
 }
 
 function renderAlerts() {
   const risky = workers.filter((w) => w.sif === "Critical" || w.repeat);
-  document.getElementById("alertList").innerHTML = risky
+  document.getElementById("alertList").innerHTML = risky.length ? risky
     .map((w) => `<div class="alert-item"><div><strong>${w.name}</strong><div class="meta">${w.id} | ${w.contractor} | ${w.project}</div></div><div>${w.type}<div class="meta">${w.investigation}</div></div><div>${chip(w.access)}</div></div>`)
-    .join("");
+    .join("") : emptyState("No high-risk access review records entered yet.");
 }
 
 function renderWorkflow() {
@@ -416,35 +229,37 @@ function renderWorkflow() {
       const stageWorkers = workers.filter((w) => w.investigation === stage).slice(0, 2);
       return `<section class="workflow-column"><h3>${stage}</h3>${stageWorkers
         .map((w) => `<div class="workflow-card-item"><strong>${w.name}</strong><span class="meta">${w.contractor} | ${w.type}</span>${chip(w.access)}</div>`)
-        .join("") || '<div class="meta">No active records</div>'}</section>`;
+        .join("") || '<div class="empty-state compact">No access review records entered yet.</div>'}</section>`;
     })
     .join("");
 }
 
 function renderRecordLists() {
-  document.getElementById("restrictedList").innerHTML = workers
-    .filter((w) => w.access === "Restricted" || w.access === "Banned From Site" || w.banned === "Yes")
+  const restrictedRecords = workers.filter((w) => w.access === "Restricted" || w.access === "Banned From Site" || w.banned === "Yes");
+  document.getElementById("restrictedList").innerHTML = restrictedRecords.length ? restrictedRecords
     .map((w) => `<div class="record-item"><div><strong>${w.name}</strong><div class="meta">${w.id} | ${w.contractor}</div></div><div>${w.scope}<div class="meta">${w.action}</div></div><div>${chip(w.access)}</div></div>`)
-    .join("");
+    .join("") : emptyState("No restricted or banned access records entered yet.");
 
-  document.getElementById("reinstatementList").innerHTML = workers
+  const reinstatementRecords = workers
     .filter((w) => w.reinstatement !== "N/A")
-    .sort((a, b) => a.reinstatement.localeCompare(b.reinstatement))
+    .sort((a, b) => a.reinstatement.localeCompare(b.reinstatement));
+  document.getElementById("reinstatementList").innerHTML = reinstatementRecords.length ? reinstatementRecords
     .map((w) => `<div class="record-item"><div><strong>${w.name}</strong><div class="meta">Review date ${w.reinstatement}</div></div><div>${w.action}<div class="meta">Authority: ${w.authority}</div></div><div>${chip(w.access)}</div></div>`)
-    .join("");
+    .join("") : emptyState("No reinstatement reviews entered yet.");
 }
 
 function renderIncidents() {
-  document.getElementById("incidentList").innerHTML = activeWorkers()
+  const current = activeWorkers();
+  document.getElementById("incidentList").innerHTML = current.length ? current
     .map((w) => `<div class="record-item"><div><strong>${w.date} | ${w.type}</strong><div class="meta">${w.name} | ${w.contractor} | ${w.project}</div></div><div>${w.notes}<div class="meta">Stop work: ${w.stopWork} | Removed from site: ${w.removedFromSite} | Utility restriction: ${w.utilityRestriction}</div><div class="meta">RCA: ${w.rca} | Corrective action: ${w.correctiveStatus} | Re-dispatch concern: ${w.reDispatchConcern}</div></div><div>${chip(w.managementReview)}</div></div>`)
-    .join("");
+    .join("") : emptyState("No incident records entered yet.");
 }
 
 function renderCorrective() {
-  document.getElementById("correctiveList").innerHTML = activeWorkers()
-    .filter((w) => w.correctiveStatus === "Open" || w.access === "Monitor")
+  const correctiveRecords = activeWorkers().filter((w) => w.correctiveStatus === "Open" || w.access === "Monitor");
+  document.getElementById("correctiveList").innerHTML = correctiveRecords.length ? correctiveRecords
     .map((w) => `<div class="record-item"><div><strong>${w.action}</strong><div class="meta">${w.name} | Owner: ${w.authority}</div></div><div>Due / review date: ${w.reinstatement}<div class="meta">Access impact: ${w.access} | Evidence: ${w.evidence}</div></div><div>${chip(w.correctiveStatus)}</div></div>`)
-    .join("");
+    .join("") : emptyState("No corrective actions entered yet.");
 }
 
 function renderReports() {
@@ -457,49 +272,11 @@ function renderReports() {
     ["Open corrective actions", current.filter((w) => w.correctiveStatus === "Open").length],
     ["High or critical severity", current.filter((w) => ["High", "Critical"].includes(w.severity)).length]
   ];
-  document.getElementById("reportSummary").innerHTML = items.map(([label, value]) => `<div class="summary-item"><span>${label}</span><strong>${value}</strong></div>`).join("");
+  document.getElementById("reportSummary").innerHTML = current.length ? items.map(([label, value]) => `<div class="summary-item"><span>${label}</span><strong>${value}</strong></div>`).join("") : emptyState("No access review records entered yet.");
 }
 
-function addMockRecord() {
-  const next = workers.length + 1001;
-  const worker = {
-    id: `BADGE-${next}`,
-    name: `Access Review Worker ${next}`,
-    source: "Union Hall Dispatch",
-    contractor: "Ward Electric",
-    priorContractor: "N/A",
-    project: "Access Review Deployment Site",
-    priorProject: "N/A",
-    date: "2026-06-29",
-    type: "Repeat Unsafe Conduct",
-    severity: "High",
-    sif: "High",
-    investigation: "Event Reported",
-    evidence: "Partial",
-    access: "Under Review",
-    scope: "Temporary pending review",
-    action: "Management review and documented coaching",
-    reinstatement: "2026-07-29",
-    authority: "Safety Manager",
-    updated: "2026-06-29",
-    repeat: false,
-    utility: "Xcel Energy",
-    jobClass: "Field Craft",
-    banned: "No",
-    disposition: "Pending",
-    notes: "Access review record added from the prototype UI to demonstrate new-record flow.",
-    stopWork: "No",
-    removedFromSite: "No",
-    utilityRestriction: "No",
-    rca: "Open",
-    correctiveStatus: "Open",
-    reDispatchConcern: "Monitor",
-    managementReview: "Active",
-    submitted: true
-  };
-  workers.unshift(worker);
-  saveSubmittedRecords();
-  renderAll();
+function addAccessReviewRecord() {
+  switchPage("intake");
 }
 
 function loadSubmittedRecords() {
@@ -529,9 +306,9 @@ function submittedRecordFromForm(form) {
 
   return {
     id: data.badgeId.trim() || `BADGE-${Date.now()}`,
-    name: data.workerName.trim() || "New Worker",
+    name: data.workerName.trim() || "Name pending review",
     source: "Intake Form",
-    contractor: data.contractor,
+    contractor: data.contractor || "Not specified",
     priorContractor: "N/A",
     project: "Pending assignment",
     priorProject: "N/A",
@@ -576,26 +353,33 @@ function submitForReview(event) {
 
 function renderNotifications() {
   const notices = workers.filter((w) => ["Under Review", "Restricted", "Monitor", "Banned From Site"].includes(w.access)).slice(0, 6);
-  document.getElementById("notificationGrid").innerHTML = notices
+  document.getElementById("notificationGrid").innerHTML = notices.length ? notices
     .map((w) => `<article class="notification-card"><strong>${w.contractor}</strong><div class="meta">${w.name} | ${w.id}</div>${chip(w.access)}<textarea readonly>Notice: ${w.investigation}. Please provide contractor response, corrective-action evidence, and supervisor acknowledgement for ${w.type}.</textarea><button class="ghost-btn">Queue Notice</button></article>`)
-    .join("");
+    .join("") : emptyState("No access review notifications are queued.");
 }
 
 function renderAudit() {
-  const items = [
-    ["2026-06-29 08:10", "Safety Reviewer updated evidence status for BADGE-1622 to Partial after telematics upload."],
-    ["2026-06-28 15:44", "Director Safety and Operations approved owner-wide access revocation for BADGE-1047 after final review."],
-    ["2026-06-27 10:22", "Contractor response requested from Q3 Contracting for trenching event BADGE-1421."],
-    ["2026-06-26 14:05", "Corrective action assigned to PAR for crane-zone exclusion event BADGE-0872."],
-    ["2026-06-22 09:30", "Reinstatement review scheduled for BADGE-1510 with access review committee."]
-  ];
-  document.getElementById("auditLog").innerHTML = items.map(([time, text]) => `<div class="timeline-item"><time>${time}</time><div>${text}</div></div>`).join("");
+  document.getElementById("auditLog").innerHTML = workers.length ? workers
+    .map((w) => `<div class="timeline-item"><time>${w.updated}</time><div>${w.name} submitted for access review. Status: ${w.investigation}.</div></div>`)
+    .join("") : emptyState("No audit activity recorded yet.");
 }
 
 function renderAdmin() {
   document.getElementById("adminGrid").innerHTML = rolePermissions
     .map(([role, permissions]) => `<article class="role-card"><h3>${role}</h3><p class="meta">${permissions}</p><label class="meta"><input type="checkbox" checked /> Audit trail required</label></article>`)
-    .join("");
+    .join("") + `<article class="role-card admin-tools"><h3>Local Browser Data</h3><p class="meta">This version stores records in this browser's localStorage. It is not connected to a shared multi-user database yet.</p><button class="ghost-btn danger-btn" id="clearLocalRecords">Clear All Local Records</button></article>`;
+  document.getElementById("clearLocalRecords").addEventListener("click", clearLocalRecords);
+}
+
+function clearLocalRecords() {
+  const confirmed = window.confirm("Clear all locally saved access review records from this browser?");
+  if (!confirmed) return;
+  workers.splice(0, workers.length);
+  localStorage.removeItem(savedRecordsKey);
+  localStorage.removeItem("safetyAccessSubmittedRecords");
+  renderAll();
+  renderAudit();
+  renderAdmin();
 }
 
 function switchPage(pageId) {
@@ -644,7 +428,7 @@ function init() {
   document.getElementById("reportCsvExport").addEventListener("click", exportCsv);
   document.getElementById("reportPdfExport").addEventListener("click", () => window.print());
   document.getElementById("printReport").addEventListener("click", () => window.print());
-  document.getElementById("addMockRecord").addEventListener("click", addMockRecord);
+  document.getElementById("addAccessReviewRecord").addEventListener("click", addAccessReviewRecord);
   document.getElementById("intakeForm").addEventListener("submit", submitForReview);
   window.addEventListener("resize", renderCharts);
 }
