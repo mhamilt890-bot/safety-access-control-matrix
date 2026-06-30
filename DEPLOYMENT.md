@@ -47,6 +47,9 @@ Upload these project files and folders:
 - `vercel.json`
 - `netlify.toml`
 - `DEPLOYMENT.md`
+- `README.md`
+- `config.js`
+- `supabase_schema.sql`
 
 Do not upload generated folders unless your host requires them. The `dist` folder is created by `npm run build`.
 
@@ -54,15 +57,20 @@ Do not upload generated folders unless your host requires them. The `dist` folde
 
 1. Create a GitHub repository.
 2. Upload the files listed above.
-3. Go to Vercel and choose `Add New Project`.
-4. Import the GitHub repository.
-5. Use these settings:
+3. Create a Supabase project.
+4. Run `supabase_schema.sql` in the Supabase SQL Editor.
+5. In Vercel, add these environment variables:
+   - `SUPABASE_URL`
+   - `SUPABASE_ANON_KEY`
+6. Go to Vercel and choose `Add New Project`.
+7. Import the GitHub repository.
+8. Use these settings:
    - Framework preset: `Other`
    - Install command: `npm install`
    - Build command: `npm run build`
    - Output directory: `dist`
-6. Click `Deploy`.
-7. Open the Vercel URL after deployment finishes.
+9. Click `Deploy`.
+10. Open the Vercel URL after deployment finishes.
 
 ## Netlify Deployment Steps
 
@@ -80,20 +88,31 @@ Do not upload generated folders unless your host requires them. The `dist` folde
 
 1. Open the deployed URL in Chrome or Microsoft Edge.
 2. Confirm the Dashboard loads with KPI cards and charts.
-3. Open Worker Matrix and confirm the blank empty-state message displays.
-4. Click Add Worker, enter a record, and save it.
-5. Click New Event, complete the Serious Event Intake form, and submit the record for review.
-6. Confirm the submitted record appears in Worker Matrix and Incident Records.
-7. Submit or edit a record with Restricted, Suspended, Banned From Site, or substantiated status and confirm it appears in Restricted / Banned List.
-8. Refresh the browser and confirm saved records persist.
-9. Use Search and filters for contractor, project, utility customer, status, severity, incident type, and banned status.
-10. Open Restricted / Banned List, Corrective Actions, Reports, and Settings / Roles.
-11. Use Edit, Delete, Save, and Cancel on manually entered records.
-12. Click CSV Export and confirm a `.csv` file downloads.
-13. Open Reports and use PDF / Print Report to save a PDF through the browser print dialog.
-14. Test Clear All Local Records under Settings / Roles and confirm it asks before clearing all local records.
-15. Test the site on a phone-sized browser window and confirm navigation and tables remain usable.
+3. Open Settings / Roles and sign in with a Supabase user.
+4. Confirm the visible marker starts with `Supabase multi-user build:`.
+5. Open Worker Matrix and confirm the blank empty-state message displays when the database has no records.
+6. Click Add Worker, enter a record, and save it.
+7. Click New Event, complete the Serious Event Intake form, and submit the record for review.
+8. Confirm the submitted record appears in Worker Matrix and Incident Records.
+9. Submit or edit a record with Restricted, Suspended, Banned From Site, or substantiated status and confirm it appears in Restricted / Banned List.
+10. Refresh the browser and confirm saved records persist from Supabase.
+11. Use Search and filters for contractor, project, utility customer, status, severity, incident type, and banned status.
+12. Open Restricted / Banned List, Corrective Actions, Reports, and Settings / Roles.
+13. Use Edit, Delete, Save, and Cancel on manually entered records.
+14. Click CSV Export and confirm a `.csv` file downloads.
+15. Import a CSV and confirm imported records persist to Supabase.
+16. Open Reports and use PDF / Print Report to save a PDF through the browser print dialog.
+17. Test Clear All Local Records under Settings / Roles and confirm it clears old browser prototype keys only.
+18. Test the site on a phone-sized browser window and confirm navigation and tables remain usable.
 
 ## Storage Note
 
-This version starts with no worker, incident, restricted/banned, corrective action, report, or audit records. User-entered records are saved in the browser's `localStorage`, so they persist on refresh for that browser only. It is not connected to a shared multi-user database yet. Clear All Local Records returns the app to blank empty-state views.
+This version starts blank unless records already exist in Supabase. No fake, sample, mock, seed, Ward, OSHA, source-data, or CSV records are auto-loaded. Add/edit/delete/import actions save to Supabase. Clear All Local Records only removes old local browser prototype keys from the current device and does not delete shared database records.
+
+## Architecture
+
+- Frontend: current static `index.html`, `styles.css`, and `app.js`.
+- Database/auth: Supabase Auth and Postgres with row level security.
+- Hosting: Vercel static build output in `dist`.
+- Configuration: `build.js` writes `dist/config.js` from Vercel environment variables.
+- Audit trail: app write actions insert append-only rows into `audit_log`; no update/delete policy is created for that table.

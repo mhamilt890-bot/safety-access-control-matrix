@@ -15,8 +15,9 @@ const eventCategories = [
 ];
 
 const storageKey = "safetyAccessControlMatrixLocalData";
-const oldStorageKeys = ["safetyAccessProductionRecords", "safetyAccessSubmittedRecords"];
-const buildMarker = "Duplicate save fix build: 2026-06-30 06:40:50 -06:00";
+const oldStorageKeys = ["safetyAccessProductionRecords", "safetyAccessSubmittedRecords", storageKey];
+const buildMarker = "Supabase multi-user build: 2026-06-30 07:40:50 -06:00";
+const config = window.SAFETY_ACCESS_CONFIG || {};
 
 const blankState = {
   records: [],
@@ -24,27 +25,288 @@ const blankState = {
   roles: []
 };
 
-let state = loadState();
+let state = JSON.parse(JSON.stringify(blankState));
 let editing = null;
+let db = null;
+let dbReady = false;
+let currentUser = null;
+let currentUserRole = "Safety Reviewer";
 
-function loadState() {
-  try {
-    const saved = JSON.parse(localStorage.getItem(storageKey) || "null");
-    if (saved && typeof saved === "object") {
-      return {
-        records: Array.isArray(saved.records) ? saved.records : [],
-        reportRecords: Array.isArray(saved.reportRecords) ? saved.reportRecords : [],
-        roles: Array.isArray(saved.roles) ? saved.roles : blankState.roles
-      };
-    }
-  } catch (error) {
-    console.warn("Unable to load local Safety Access records.", error);
-  }
-  return JSON.parse(JSON.stringify(blankState));
+async function initDatabase() {
+  if (!config.supabaseUrl || !config.supabaseAnonKey || !window.supabase) return;
+  db = window.supabase.createClient(config.supabaseUrl, config.supabaseAnonKey);
+  dbReady = true;
+  const { data } = await db.auth.getSession();
+  currentUser = data.session?.user || null;
+  await loadCurrentUserRole();
+  db.auth.onAuthStateChange(async (_event, session) => {
+    currentUser = session?.user || null;
+    await loadCurrentUserRole();
+    await loadRemoteState();
+    renderAll();
+  });
 }
 
-function saveState() {
-  localStorage.setItem(storageKey, JSON.stringify(state));
+function canWrite() {
+  const writeRoles = ["System Admin", "Safety Admin", "Safety Manager", "Safety Reviewer", "Editor"];
+  return !dbReady || (currentUser && writeRoles.includes(currentUserRole));
+}
+
+async function loadCurrentUserRole() {
+  currentUserRole = "Safety Reviewer";
+  if (!dbReady || !currentUser) return;
+  const { data, error } = await db.from("profiles").select("role").eq("id", currentUser.id).maybeSingle();
+  if (!error && data?.role) currentUserRole = data.role;
+}
+
+async function loadRemoteState() {
+  state = JSON.parse(JSON.stringify(blankState));
+  if (!dbReady || !currentUser) return;
+  const [recordsResult, reportsResult, rolesResult] = await Promise.all([
+    db.from("access_records").select("*").order("created_at", { ascending: false }),
+    db.from("report_records").select("*").order("created_at", { ascending: false }),
+    db.from("app_roles").select("*").order("created_at", { ascending: false })
+  ]);
+
+  if (recordsResult.error) console.warn("Unable to load access records.", recordsResult.error);
+  if (reportsResult.error) console.warn("Unable to load report records.", reportsResult.error);
+  if (rolesResult.error) console.warn("Unable to load roles.", rolesResult.error);
+
+  state.records = (recordsResult.data || []).map(rowToRecord);
+  state.reportRecords = (reportsResult.data || []).map(rowToReport);
+  state.roles = (rolesResult.data || []).map(rowToRole);
+}
+
+function recordToRow(record) {
+  return {
+    id: record.id,
+    name: record.name,
+    source: record.source,
+    contractor: record.contractor,
+    prior_contractor: record.priorContractor,
+    project: record.project,
+    prior_project: record.priorProject,
+    event_date: record.date || null,
+    event_type: record.type,
+    severity: record.severity,
+    sif: record.sif,
+    investigation: record.investigation,
+    evidence: record.evidence,
+    access_status: record.access,
+    restriction_scope: record.scope,
+    corrective_action: record.action,
+    review_date: record.reinstatement || null,
+    authority: record.authority,
+    updated_label: record.updated,
+    repeat_event: Boolean(record.repeat),
+    utility: record.utility,
+    job_class: record.jobClass,
+    banned: record.banned,
+    disposition: record.disposition,
+    notes: record.notes,
+    stop_work: record.stopWork,
+    removed_from_site: record.removedFromSite,
+    utility_restriction: record.utilityRestriction,
+    rca: record.rca,
+    corrective_status: record.correctiveStatus,
+    redispatch_concern: record.reDispatchConcern,
+    management_review: record.managementReview,
+    created_by: currentUser?.id || null
+  };
+}
+
+function rowToRecord(row) {
+  return blankRecord({
+    id: row.id,
+    name: row.name,
+    source: row.source,
+    contractor: row.contractor,
+    priorContractor: row.prior_contractor,
+    project: row.project,
+    priorProject: row.prior_project,
+    date: row.event_date || "",
+    type: row.event_type,
+    severity: row.severity,
+    sif: row.sif,
+    investigation: row.investigation,
+    evidence: row.evidence,
+    access: row.access_status,
+    scope: row.restriction_scope,
+    action: row.corrective_action,
+    reinstatement: row.review_date || "",
+    authority: row.authority,
+    updated: row.updated_label,
+    repeat: row.repeat_event,
+    utility: row.utility,
+    jobClass: row.job_class,
+    banned: row.banned,
+    disposition: row.disposition,
+    notes: row.notes,
+    stopWork: row.stop_work,
+    removedFromSite: row.removed_from_site,
+    utilityRestriction: row.utility_restriction,
+    rca: row.rca,
+    correctiveStatus: row.corrective_status,
+    reDispatchConcern: row.redispatch_concern,
+    managementReview: row.management_review
+  });
+}
+
+function reportToRow(report) {
+  return { id: report.id, title: report.title, report_date: report.date || null, owner: report.owner, notes: report.notes, created_by: currentUser?.id || null };
+}
+
+function rowToReport(row) {
+  return { id: row.id, title: row.title || "", date: row.report_date || "", owner: row.owner || "", notes: row.notes || "" };
+}
+
+function roleToRow(role) {
+  return { id: role.id, role: role.role, permissions: role.permissions, audit: role.audit, created_by: currentUser?.id || null };
+}
+
+function rowToRole(row) {
+  return { id: row.id, role: row.role || "", permissions: row.permissions || "", audit: row.audit || "Yes" };
+}
+
+async function signIn() {
+  const email = document.getElementById("authEmail")?.value.trim();
+  const password = document.getElementById("authPassword")?.value;
+  if (!email || !password) return alert("Enter an email and password.");
+  const { error } = await db.auth.signInWithPassword({ email, password });
+  if (error) alert(error.message);
+}
+
+async function signUp() {
+  const email = document.getElementById("authEmail")?.value.trim();
+  const password = document.getElementById("authPassword")?.value;
+  if (!email || !password) return alert("Enter an email and password.");
+  const { error } = await db.auth.signUp({ email, password });
+  if (error) alert(error.message);
+  else alert("User created. Check email confirmation settings in Supabase, then sign in.");
+}
+
+async function signOut() {
+  const { error } = await db.auth.signOut();
+  if (error) alert(error.message);
+}
+
+async function saveAccessRecord(record) {
+  if (!canWrite()) {
+    alert("Please sign in with an authorized role before saving records.");
+    return false;
+  }
+  if (dbReady) {
+    const { error } = await db.from("access_records").upsert(recordToRow(record));
+    if (error) throw error;
+    await syncDerivedRecords(record);
+    await writeAudit("upsert", "access_records", record.id, record);
+  }
+  return true;
+}
+
+async function syncDerivedRecords(record) {
+  const incidentRow = {
+    id: record.id,
+    access_record_id: record.id,
+    event_date: record.date || null,
+    event_type: record.type,
+    severity: record.severity,
+    sif: record.sif,
+    investigation: record.investigation,
+    notes: record.notes,
+    created_by: currentUser?.id || null
+  };
+  const { error: incidentError } = await db.from("incidents").upsert(incidentRow);
+  if (incidentError) throw incidentError;
+
+  if (isRestrictedRecord(record)) {
+    const restrictedRow = {
+      id: record.id,
+      access_record_id: record.id,
+      worker_name: record.name,
+      contractor: record.contractor,
+      access_status: record.access,
+      banned: record.banned,
+      restriction_scope: record.scope,
+      disposition: record.disposition,
+      review_date: record.reinstatement || null,
+      created_by: currentUser?.id || null
+    };
+    const { error } = await db.from("restricted_banned_records").upsert(restrictedRow);
+    if (error) throw error;
+  } else {
+    const { error } = await db.from("restricted_banned_records").delete().eq("id", record.id);
+    if (error) throw error;
+  }
+
+  if (record.action || record.correctiveStatus === "Open" || record.access === "Monitor") {
+    const actionRow = {
+      id: record.id,
+      access_record_id: record.id,
+      action: record.action,
+      owner: record.authority,
+      status: record.correctiveStatus,
+      review_date: record.reinstatement || null,
+      evidence: record.evidence,
+      created_by: currentUser?.id || null
+    };
+    const { error } = await db.from("corrective_actions").upsert(actionRow);
+    if (error) throw error;
+  } else {
+    const { error } = await db.from("corrective_actions").delete().eq("id", record.id);
+    if (error) throw error;
+  }
+}
+
+async function saveReportRecord(report) {
+  if (!canWrite()) {
+    alert("Please sign in with an authorized role before saving report records.");
+    return false;
+  }
+  if (dbReady) {
+    const { error } = await db.from("report_records").upsert(reportToRow(report));
+    if (error) throw error;
+    await writeAudit("upsert", "report_records", report.id, report);
+  }
+  return true;
+}
+
+async function saveRoleRecord(role) {
+  if (!canWrite()) {
+    alert("Please sign in with an authorized role before saving roles.");
+    return false;
+  }
+  if (dbReady) {
+    const { error } = await db.from("app_roles").upsert(roleToRow(role));
+    if (error) throw error;
+    await writeAudit("upsert", "app_roles", role.id, role);
+  }
+  return true;
+}
+
+async function deleteRemoteRecord(table, id) {
+  if (!canWrite()) {
+    alert("Please sign in with an authorized role before deleting records.");
+    return false;
+  }
+  if (dbReady) {
+    const { error } = await db.from(table).delete().eq("id", id);
+    if (error) throw error;
+    await writeAudit("delete", table, id, {});
+  }
+  return true;
+}
+
+async function writeAudit(action, tableName, recordId, details) {
+  if (!dbReady || !currentUser) return;
+  await db.from("audit_log").insert({
+    action,
+    table_name: tableName,
+    record_id: recordId,
+    user_id: currentUser.id,
+    user_email: currentUser.email,
+    details
+  });
 }
 
 function newId(prefix) {
@@ -310,9 +572,16 @@ function renderAdmin() {
   const roleCards = state.roles.length ? state.roles
     .map((role) => `<article class="role-card"><h3>${escapeHtml(role.role)}</h3><p class="meta">${escapeHtml(role.permissions)}</p><p class="meta">Audit trail required: ${escapeHtml(role.audit)}</p>${recordRoleActions(role)}</article>`)
     .join("") : emptyState("No records entered yet.");
-  document.getElementById("adminGrid").innerHTML = `${roleCards}<article class="role-card admin-tools"><h3>Local Browser Data</h3><p class="meta">All dashboard records are stored in this browser's localStorage. This version is not connected to a shared multi-user database yet.</p><p class="meta build-marker">${buildMarker}</p><button class="primary-btn" id="addRoleRecord">Add Role</button><button class="ghost-btn danger-btn" id="clearLocalRecords">Clear All Local Records</button></article>`;
+  const authCard = dbReady ? (currentUser
+    ? `<article class="role-card admin-tools"><h3>Signed In</h3><p class="meta">${escapeHtml(currentUser.email)}</p><p class="meta">Role: ${escapeHtml(currentUserRole)}</p><p class="meta">Records save to the shared Supabase database.</p><button class="ghost-btn" id="signOutBtn">Sign Out</button></article>`
+    : `<article class="role-card admin-tools"><h3>Database Sign In</h3><p class="meta">Sign in before adding, editing, importing, or deleting records.</p><label>Email<input id="authEmail" type="email" autocomplete="email"></label><label>Password<input id="authPassword" type="password" autocomplete="current-password"></label><button class="primary-btn" id="signInBtn">Sign In</button><button class="ghost-btn" id="signUpBtn">Create User</button></article>`)
+    : `<article class="role-card admin-tools"><h3>Database Setup Needed</h3><p class="meta">Add SUPABASE_URL and SUPABASE_ANON_KEY in Vercel to enable the shared database.</p></article>`;
+  document.getElementById("adminGrid").innerHTML = `${authCard}${roleCards}<article class="role-card admin-tools"><h3>Admin Tools</h3><p class="meta">Clear All Local Records removes old browser prototype data only. Shared database records remain until an authorized user deletes them.</p><p class="meta build-marker">${buildMarker}</p><button class="primary-btn" id="addRoleRecord">Add Role</button><button class="ghost-btn danger-btn" id="clearLocalRecords">Clear All Local Records</button></article>`;
   document.getElementById("clearLocalRecords").addEventListener("click", clearLocalRecords);
   document.getElementById("addRoleRecord").addEventListener("click", () => openRoleEditor());
+  document.getElementById("signInBtn")?.addEventListener("click", signIn);
+  document.getElementById("signUpBtn")?.addEventListener("click", signUp);
+  document.getElementById("signOutBtn")?.addEventListener("click", signOut);
 }
 
 function recordRoleActions(role) {
@@ -426,7 +695,7 @@ function openRecordEditor(record = null, context = "record") {
   document.getElementById("cancelEditor").addEventListener("click", closeEditor);
 }
 
-function saveRecordEditor(event) {
+async function saveRecordEditor(event) {
   event.preventDefault();
   event.stopPropagation();
   const form = event.currentTarget;
@@ -437,13 +706,22 @@ function saveRecordEditor(event) {
   const record = blankRecord(data);
   record.updated = today();
   const existingId = editing.id || record.id;
+  try {
+    const saved = await saveAccessRecord(record);
+    if (!saved) return;
+  } catch (error) {
+    alert(`Unable to save record: ${error.message}`);
+    return;
+  } finally {
+    form.dataset.saving = "false";
+    form.querySelector('button[type="submit"]').disabled = false;
+  }
   const existingIndex = state.records.findIndex((item) => item.id === existingId || item.id === record.id);
   if (existingIndex >= 0) {
     state.records[existingIndex] = record;
   } else {
     state.records.unshift(record);
   }
-  saveState();
   closeEditor();
   renderAll();
 }
@@ -468,7 +746,7 @@ function openReportEditor(record = null) {
   document.getElementById("cancelEditor").addEventListener("click", closeEditor);
 }
 
-function saveReportEditor(event) {
+async function saveReportEditor(event) {
   event.preventDefault();
   event.stopPropagation();
   const form = event.currentTarget;
@@ -477,13 +755,22 @@ function saveReportEditor(event) {
   form.querySelector('button[type="submit"]').disabled = true;
   const report = Object.fromEntries(new FormData(form).entries());
   const existingId = editing.id || report.id;
+  try {
+    const saved = await saveReportRecord(report);
+    if (!saved) return;
+  } catch (error) {
+    alert(`Unable to save report record: ${error.message}`);
+    return;
+  } finally {
+    form.dataset.saving = "false";
+    form.querySelector('button[type="submit"]').disabled = false;
+  }
   const existingIndex = state.reportRecords.findIndex((item) => item.id === existingId || item.id === report.id);
   if (existingIndex >= 0) {
     state.reportRecords[existingIndex] = report;
   } else {
     state.reportRecords.unshift(report);
   }
-  saveState();
   closeEditor();
   renderAll();
 }
@@ -503,7 +790,7 @@ function openRoleEditor(role = null) {
   document.getElementById("cancelEditor").addEventListener("click", closeEditor);
 }
 
-function saveRoleEditor(event) {
+async function saveRoleEditor(event) {
   event.preventDefault();
   event.stopPropagation();
   const form = event.currentTarget;
@@ -512,36 +799,60 @@ function saveRoleEditor(event) {
   form.querySelector('button[type="submit"]').disabled = true;
   const role = Object.fromEntries(new FormData(form).entries());
   const existingId = editing.id || role.id;
+  try {
+    const saved = await saveRoleRecord(role);
+    if (!saved) return;
+  } catch (error) {
+    alert(`Unable to save role: ${error.message}`);
+    return;
+  } finally {
+    form.dataset.saving = "false";
+    form.querySelector('button[type="submit"]').disabled = false;
+  }
   const existingIndex = state.roles.findIndex((item) => item.id === existingId || item.id === role.id);
   if (existingIndex >= 0) {
     state.roles[existingIndex] = role;
   } else {
     state.roles.unshift(role);
   }
-  saveState();
   closeEditor();
   renderAll();
 }
 
-function deleteRecord(id) {
+async function deleteRecord(id) {
   if (!window.confirm("Delete this record?")) return;
-  state.records = state.records.filter((record) => record.id !== id);
-  saveState();
-  renderAll();
+  try {
+    const deleted = await deleteRemoteRecord("access_records", id);
+    if (!deleted) return;
+    state.records = state.records.filter((record) => record.id !== id);
+    renderAll();
+  } catch (error) {
+    alert(`Unable to delete record: ${error.message}`);
+  }
 }
 
-function deleteReport(id) {
+async function deleteReport(id) {
   if (!window.confirm("Delete this report record?")) return;
-  state.reportRecords = state.reportRecords.filter((record) => record.id !== id);
-  saveState();
-  renderAll();
+  try {
+    const deleted = await deleteRemoteRecord("report_records", id);
+    if (!deleted) return;
+    state.reportRecords = state.reportRecords.filter((record) => record.id !== id);
+    renderAll();
+  } catch (error) {
+    alert(`Unable to delete report record: ${error.message}`);
+  }
 }
 
-function deleteRole(id) {
+async function deleteRole(id) {
   if (!window.confirm("Delete this role?")) return;
-  state.roles = state.roles.filter((role) => role.id !== id);
-  saveState();
-  renderAll();
+  try {
+    const deleted = await deleteRemoteRecord("app_roles", id);
+    if (!deleted) return;
+    state.roles = state.roles.filter((role) => role.id !== id);
+    renderAll();
+  } catch (error) {
+    alert(`Unable to delete role: ${error.message}`);
+  }
 }
 
 function submittedRecordFromForm(form) {
@@ -575,24 +886,30 @@ function submittedRecordFromForm(form) {
   });
 }
 
-function submitForReview(event) {
+async function submitForReview(event) {
   event.preventDefault();
-  state.records.unshift(submittedRecordFromForm(event.currentTarget));
-  saveState();
-  renderAll();
-  document.getElementById("submissionMessage").textContent = "Record submitted for review.";
-  switchPage("incidents");
+  const record = submittedRecordFromForm(event.currentTarget);
+  try {
+    const saved = await saveAccessRecord(record);
+    if (!saved) return;
+    state.records.unshift(record);
+    renderAll();
+    document.getElementById("submissionMessage").textContent = "Record submitted for review.";
+    switchPage("incidents");
+  } catch (error) {
+    alert(`Unable to submit record: ${error.message}`);
+  }
 }
 
-function clearLocalRecords() {
-  const confirmed = window.confirm("Clear all user-entered local records from this browser?");
+async function clearLocalRecords() {
+  const confirmed = window.confirm("Clear old local browser records from this device? Shared database records will not be deleted.");
   if (!confirmed) return;
-  state = JSON.parse(JSON.stringify(blankState));
   localStorage.removeItem(storageKey);
   oldStorageKeys.forEach((key) => localStorage.removeItem(key));
   Object.keys(localStorage)
     .filter((key) => key.toLowerCase().includes("safetyaccess"))
     .forEach((key) => localStorage.removeItem(key));
+  await loadRemoteState();
   closeEditor();
   renderAll();
 }
@@ -650,7 +967,7 @@ function parseCsv(text) {
 
 function importCsvFile(file) {
   const reader = new FileReader();
-  reader.onload = () => {
+  reader.onload = async () => {
     const rows = parseCsv(String(reader.result || ""));
     const [, ...dataRows] = rows;
     const csvRecords = dataRows.map((row) => blankRecord({
@@ -678,9 +995,16 @@ function importCsvFile(file) {
       updated: row[21] || today()
     }));
 
-    state.records.unshift(...csvRecords);
-    saveState();
-    renderAll();
+    try {
+      for (const record of csvRecords) {
+        const saved = await saveAccessRecord(record);
+        if (!saved) return;
+      }
+      state.records.unshift(...csvRecords);
+      renderAll();
+    } catch (error) {
+      alert(`Unable to import CSV records: ${error.message}`);
+    }
   };
   reader.readAsText(file);
 }
@@ -710,9 +1034,11 @@ function handleDocumentClick(event) {
   if (deleteRoleId) deleteRole(deleteRoleId);
 }
 
-function init() {
+async function init() {
   document.querySelector(".workspace").insertAdjacentHTML("afterbegin", '<div id="editorHost"></div>');
   addPageButtons();
+  await initDatabase();
+  await loadRemoteState();
   renderAll();
 
   document.querySelectorAll("[data-page], [data-page-link]").forEach((button) => {

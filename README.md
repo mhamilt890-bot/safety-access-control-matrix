@@ -1,6 +1,6 @@
 # Safety Access Control Matrix
 
-Safety Access Control Matrix is a browser-based prototype for tracking contractor and worker safety access concerns, serious incident intake, investigation review, restricted or banned-from-site status, corrective actions, reports, audit activity, and role-ready permissions.
+Safety Access Control Matrix is a Supabase-backed safety access governance platform for tracking contractor and worker access reviews, serious event intake, incident records, restricted or banned-from-site status, corrective actions, reports, audit activity, and role-ready permissions.
 
 ## Run Locally
 
@@ -26,8 +26,36 @@ npm run verify
 
 Use the exact Vercel and Netlify deployment steps in `DEPLOYMENT.md`.
 
-## Data Storage
+## Production Data Storage
 
-This version starts with no worker, incident, restricted/banned, corrective action, report, or audit records. Records entered through New Event or the Add buttons are saved in the browser's `localStorage`, so they persist on refresh for that browser only. It is not connected to a shared multi-user database yet.
+This version starts with no worker, incident, restricted/banned, corrective action, report, or audit records unless those records already exist in the connected Supabase database. The app does not load fake, sample, mock, seed, source-data, audit-import, Ward, OSHA, or CSV records by default.
 
-The Settings / Roles button labeled Clear All Local Records clears user-entered localStorage records and returns the app to blank empty-state views.
+Records entered through New Event, Add Worker, Add Incident, Add Restricted/Banned Record, Add Corrective Action, Add Report Record, edit, delete, and CSV import persist to Supabase. Dashboard counts, charts, filters, Worker Matrix, Incident Records, Restricted/Banned List, Corrective Actions, Reports, and Settings/Roles render from the shared database.
+
+Clear All Local Records only removes old browser prototype storage keys from the current device. It does not delete shared database records.
+
+## Supabase Setup
+
+1. Create a Supabase project.
+2. Open the Supabase SQL Editor.
+3. Run `supabase_schema.sql`.
+4. In Supabase Authentication, create company users or allow email signup.
+5. In Vercel, add these environment variables:
+   - `SUPABASE_URL`
+   - `SUPABASE_ANON_KEY`
+6. Deploy through Vercel with output directory `dist`.
+
+## Database Tables
+
+- `access_records`: main worker/access review records used by Worker Matrix and dashboard counts.
+- `incidents`: event/incident mirror records created from saved access review records.
+- `restricted_banned_records`: automatic restricted/banned mirror records based on access, banned, suspended, removed-from-site, or substantiated status.
+- `corrective_actions`: automatic corrective-action mirror records when action or open corrective status exists.
+- `report_records`: manually maintained report records.
+- `profiles`: authenticated user profile records.
+- `app_roles`: editable app role/permission records.
+- `audit_log`: append-only create/edit/delete activity log.
+
+## Version Marker
+
+Open Settings / Roles and confirm the visible marker starts with `Supabase multi-user build:`.

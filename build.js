@@ -12,4 +12,12 @@ for (const file of files) {
   fs.copyFileSync(path.join(root, file), path.join(dist, file));
 }
 
+const config = `window.SAFETY_ACCESS_CONFIG = {
+  supabaseUrl: "${process.env.SUPABASE_URL || ""}",
+  supabaseAnonKey: "${process.env.SUPABASE_ANON_KEY || ""}"
+};
+`;
+
+fs.writeFileSync(path.join(dist, "config.js"), config);
+
 console.log(`Build complete: ${dist}`);
