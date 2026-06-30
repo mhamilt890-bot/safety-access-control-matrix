@@ -16,7 +16,7 @@ const eventCategories = [
 
 const storageKey = "safetyAccessControlMatrixLocalData";
 const oldStorageKeys = ["safetyAccessProductionRecords", "safetyAccessSubmittedRecords"];
-const buildMarker = "Blank editable dashboard build: 2026-06-29 18:52:37 -06:00";
+const buildMarker = "Duplicate save fix build: 2026-06-30 06:40:50 -06:00";
 
 const blankState = {
   records: [],
@@ -428,12 +428,18 @@ function openRecordEditor(record = null, context = "record") {
 
 function saveRecordEditor(event) {
   event.preventDefault();
+  event.stopPropagation();
   const form = event.currentTarget;
+  if (form.dataset.saving === "true") return;
+  form.dataset.saving = "true";
+  form.querySelector('button[type="submit"]').disabled = true;
   const data = Object.fromEntries(new FormData(form).entries());
   const record = blankRecord(data);
   record.updated = today();
-  if (editing.id) {
-    state.records = state.records.map((item) => item.id === editing.id ? record : item);
+  const existingId = editing.id || record.id;
+  const existingIndex = state.records.findIndex((item) => item.id === existingId || item.id === record.id);
+  if (existingIndex >= 0) {
+    state.records[existingIndex] = record;
   } else {
     state.records.unshift(record);
   }
@@ -464,9 +470,16 @@ function openReportEditor(record = null) {
 
 function saveReportEditor(event) {
   event.preventDefault();
-  const report = Object.fromEntries(new FormData(event.currentTarget).entries());
-  if (editing.id) {
-    state.reportRecords = state.reportRecords.map((item) => item.id === editing.id ? report : item);
+  event.stopPropagation();
+  const form = event.currentTarget;
+  if (form.dataset.saving === "true") return;
+  form.dataset.saving = "true";
+  form.querySelector('button[type="submit"]').disabled = true;
+  const report = Object.fromEntries(new FormData(form).entries());
+  const existingId = editing.id || report.id;
+  const existingIndex = state.reportRecords.findIndex((item) => item.id === existingId || item.id === report.id);
+  if (existingIndex >= 0) {
+    state.reportRecords[existingIndex] = report;
   } else {
     state.reportRecords.unshift(report);
   }
@@ -492,9 +505,16 @@ function openRoleEditor(role = null) {
 
 function saveRoleEditor(event) {
   event.preventDefault();
-  const role = Object.fromEntries(new FormData(event.currentTarget).entries());
-  if (editing.id) {
-    state.roles = state.roles.map((item) => item.id === editing.id ? role : item);
+  event.stopPropagation();
+  const form = event.currentTarget;
+  if (form.dataset.saving === "true") return;
+  form.dataset.saving = "true";
+  form.querySelector('button[type="submit"]').disabled = true;
+  const role = Object.fromEntries(new FormData(form).entries());
+  const existingId = editing.id || role.id;
+  const existingIndex = state.roles.findIndex((item) => item.id === existingId || item.id === role.id);
+  if (existingIndex >= 0) {
+    state.roles[existingIndex] = role;
   } else {
     state.roles.unshift(role);
   }
