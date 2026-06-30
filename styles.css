@@ -499,6 +499,41 @@ textarea {
   color: #b91c1c;
 }
 
+.build-marker {
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: #eef6ff;
+  color: #1d4ed8;
+  font-weight: 700;
+}
+
+.section-actions,
+.record-actions,
+.editor-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.section-actions {
+  margin: 0 0 14px;
+}
+
+.record-actions {
+  justify-content: flex-end;
+}
+
+.record-actions .ghost-btn,
+.editor-actions .ghost-btn,
+.editor-actions .primary-btn {
+  padding: 8px 10px;
+}
+
+.editor-panel {
+  margin-bottom: 16px;
+}
+
 .review-board {
   display: grid;
   grid-template-columns: repeat(3, minmax(210px, 1fr));

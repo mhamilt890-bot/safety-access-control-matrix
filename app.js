@@ -16,9 +16,9 @@ const eventCategories = [
 
 const storageKey = "safetyAccessControlMatrixLocalData";
 const oldStorageKeys = ["safetyAccessProductionRecords", "safetyAccessSubmittedRecords"];
-const buildMarker = "Editable dashboard build: 2026-06-29 18:26:52 -06:00";
+const buildMarker = "Blank editable dashboard build: 2026-06-29 18:52:37 -06:00";
 
-const defaultState = {
+const blankState = {
   records: [],
   reportRecords: [],
   roles: []
@@ -34,13 +34,13 @@ function loadState() {
       return {
         records: Array.isArray(saved.records) ? saved.records : [],
         reportRecords: Array.isArray(saved.reportRecords) ? saved.reportRecords : [],
-        roles: Array.isArray(saved.roles) ? saved.roles : defaultState.roles
+        roles: Array.isArray(saved.roles) ? saved.roles : blankState.roles
       };
     }
   } catch (error) {
     console.warn("Unable to load local Safety Access records.", error);
   }
-  return JSON.parse(JSON.stringify(defaultState));
+  return JSON.parse(JSON.stringify(blankState));
 }
 
 function saveState() {
@@ -335,7 +335,7 @@ function renderAll() {
   renderAdmin();
 }
 
-function defaultRecord(overrides = {}) {
+function blankRecord(overrides = {}) {
   return {
     id: overrides.id || newId("REC"),
     name: overrides.name || "",
@@ -383,7 +383,7 @@ function selectField(name, label, value, options) {
 
 function openRecordEditor(record = null, context = "record") {
   editing = { type: "record", id: record?.id || null };
-  const current = defaultRecord(record || {});
+  const current = blankRecord(record || {});
   const host = document.getElementById("editorHost");
   host.innerHTML = `<form class="panel editor-panel" id="recordEditor">
     <div class="panel-heading"><h2>${record ? "Edit" : "Add"} ${context}</h2><span>Save or cancel your changes</span></div>
@@ -430,7 +430,7 @@ function saveRecordEditor(event) {
   event.preventDefault();
   const form = event.currentTarget;
   const data = Object.fromEntries(new FormData(form).entries());
-  const record = defaultRecord(data);
+  const record = blankRecord(data);
   record.updated = today();
   if (editing.id) {
     state.records = state.records.map((item) => item.id === editing.id ? record : item);
@@ -535,7 +535,7 @@ function submittedRecordFromForm(form) {
   };
   const [access, scope, disposition] = accessByAction[data.accessAction] || accessByAction["Temporary Pending Review"];
 
-  return defaultRecord({
+  return blankRecord({
     id: data.badgeId.trim() || newId("REC"),
     name: data.workerName.trim() || "Name pending review",
     source: data.source || "Intake Form",
@@ -567,9 +567,12 @@ function submitForReview(event) {
 function clearLocalRecords() {
   const confirmed = window.confirm("Clear all user-entered local records from this browser?");
   if (!confirmed) return;
-  state = JSON.parse(JSON.stringify(defaultState));
+  state = JSON.parse(JSON.stringify(blankState));
   localStorage.removeItem(storageKey);
   oldStorageKeys.forEach((key) => localStorage.removeItem(key));
+  Object.keys(localStorage)
+    .filter((key) => key.toLowerCase().includes("safetyaccess"))
+    .forEach((key) => localStorage.removeItem(key));
   closeEditor();
   renderAll();
 }
@@ -630,7 +633,7 @@ function importCsvFile(file) {
   reader.onload = () => {
     const rows = parseCsv(String(reader.result || ""));
     const [, ...dataRows] = rows;
-    const imported = dataRows.map((row) => defaultRecord({
+    const csvRecords = dataRows.map((row) => blankRecord({
       id: row[0] || newId("REC"),
       name: row[1] || "",
       contractor: row[2] || "",
@@ -655,7 +658,7 @@ function importCsvFile(file) {
       updated: row[21] || today()
     }));
 
-    state.records.unshift(...imported);
+    state.records.unshift(...csvRecords);
     saveState();
     renderAll();
   };
@@ -666,9 +669,9 @@ function addPageButtons() {
   document.getElementById("incidentList").insertAdjacentHTML("beforebegin", '<div class="section-actions"><button class="primary-btn" id="addIncident">Add Incident</button></div>');
   document.getElementById("restrictedList").insertAdjacentHTML("beforebegin", '<div class="section-actions"><button class="primary-btn" id="addRestricted">Add Restricted/Banned Record</button></div>');
   document.getElementById("correctiveList").insertAdjacentHTML("beforebegin", '<div class="section-actions"><button class="primary-btn" id="addCorrective">Add Corrective Action</button></div>');
-  document.getElementById("addIncident").addEventListener("click", () => openRecordEditor(defaultRecord({ source: "Manual Incident", investigation: "Event Reported" }), "Incident"));
-  document.getElementById("addRestricted").addEventListener("click", () => openRecordEditor(defaultRecord({ source: "Manual Restricted/Banned Record", access: "Restricted", removedFromSite: "Yes", disposition: "Substantiated" }), "Restricted/Banned Record"));
-  document.getElementById("addCorrective").addEventListener("click", () => openRecordEditor(defaultRecord({ source: "Manual Corrective Action", correctiveStatus: "Open", investigation: "Corrective Action Assigned" }), "Corrective Action"));
+  document.getElementById("addIncident").addEventListener("click", () => openRecordEditor(blankRecord({ source: "Manual Incident", investigation: "Event Reported" }), "Incident"));
+  document.getElementById("addRestricted").addEventListener("click", () => openRecordEditor(blankRecord({ source: "Manual Restricted/Banned Record", access: "Restricted", removedFromSite: "Yes", disposition: "Substantiated" }), "Restricted/Banned Record"));
+  document.getElementById("addCorrective").addEventListener("click", () => openRecordEditor(blankRecord({ source: "Manual Corrective Action", correctiveStatus: "Open", investigation: "Corrective Action Assigned" }), "Corrective Action"));
 }
 
 function handleDocumentClick(event) {
@@ -721,7 +724,7 @@ function init() {
   });
   document.getElementById("reportPdfExport").addEventListener("click", () => window.print());
   document.getElementById("printReport").addEventListener("click", () => window.print());
-  document.getElementById("addWorker").addEventListener("click", () => openRecordEditor(defaultRecord({ source: "Manual Worker Matrix Entry" }), "Worker"));
+  document.getElementById("addWorker").addEventListener("click", () => openRecordEditor(blankRecord({ source: "Manual Worker Matrix Entry" }), "Worker"));
   document.getElementById("intakeForm").addEventListener("submit", submitForReview);
   document.addEventListener("click", handleDocumentClick);
   window.addEventListener("resize", renderCharts);

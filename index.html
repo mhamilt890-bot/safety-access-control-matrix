@@ -112,7 +112,7 @@
               <option value="">All banned statuses</option>
             </select>
             <button class="ghost-btn" id="clearFilters">Clear Filters</button>
-            <button class="primary-btn" id="addAccessReviewRecord">Add Access Review Record</button>
+            <button class="primary-btn" id="addWorker">Add Worker</button>
           </div>
           <div class="table-shell">
             <table>
@@ -142,6 +142,7 @@
                   <th>Final Disposition</th>
                   <th>Notes</th>
                   <th>Last Updated</th>
+                  <th>Actions</th>
                 </tr>
               </thead>
               <tbody id="matrixBody"></tbody>
@@ -159,12 +160,14 @@
               <div class="form-grid">
                 <label>Worker Name<input name="workerName" placeholder="Worker name" /></label>
                 <label>Badge ID<input name="badgeId" placeholder="Badge or employee ID" /></label>
-                <label>Contractor<select name="contractor"><option value="">Select contractor</option><option>Ward Electric</option><option>PAR</option><option>Q3 Contracting</option><option>Sturgeon Electric</option><option>Xcel Energy</option><option>Crux Micropiling</option></select></label>
+                <label>Contractor<input name="contractor" placeholder="Contractor or company" /></label>
+                <label>Dispatch Source<input name="source" placeholder="Union local, contractor source, or reporting source" /></label>
+                <label>Project / Site<input name="project" placeholder="Project, site, or work location" /></label>
                 <label>Event Date<input name="eventDate" type="date" /></label>
                 <label>Event Category<select name="eventCategory" id="eventCategorySelect"></select></label>
                 <label>Severity<select name="severity"><option>Critical</option><option>High</option><option>Moderate</option><option>Low</option></select></label>
                 <label>SIF Potential<select name="sif"><option>Critical</option><option>High</option><option>Moderate</option><option>Low</option></select></label>
-                <label>Immediate Access Action<select name="accessAction"><option>Temporary Pending Review</option><option>No Restriction Pending Facts</option><option>Site-Specific Restriction</option></select></label>
+                <label>Immediate Access Action<select name="accessAction"><option>Temporary Pending Review</option><option>No Restriction Pending Facts</option><option>Site-Specific Restriction</option><option>Suspended Pending Review</option><option>Banned From Site</option></select></label>
               </div>
               <label class="wide-label">Event Summary<textarea name="eventSummary" placeholder="Summarize the reported event, immediate action, known facts, and pending review items."></textarea></label>
               <div class="upload-zone">
@@ -252,8 +255,10 @@
               </div>
               <div class="export-actions">
                 <button class="ghost-btn" id="reportCsvExport">CSV Export</button>
+                <button class="ghost-btn" id="reportCsvImport">CSV Import</button>
                 <button class="ghost-btn" id="reportPdfExport">PDF / Print Report</button>
               </div>
+              <input id="csvImportInput" type="file" accept=".csv,text/csv" hidden />
               <p class="meta">PDF export uses the browser print dialog. Choose "Save as PDF" to create a management report.</p>
             </article>
           </div>
