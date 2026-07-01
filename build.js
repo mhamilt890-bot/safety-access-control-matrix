@@ -14,7 +14,8 @@ for (const file of files) {
 
 const config = `window.SAFETY_ACCESS_CONFIG = {
   supabaseUrl: "${process.env.SUPABASE_URL || ""}",
-  supabaseAnonKey: "${process.env.SUPABASE_ANON_KEY || ""}"
+  supabaseAnonKey: "${process.env.SUPABASE_ANON_KEY || ""}",
+  evidenceBucketName: "${process.env.SUPABASE_EVIDENCE_BUCKET || "safety-evidence"}"
 };
 `;
 

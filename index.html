@@ -208,7 +208,14 @@
               </div>
               <label class="wide-label">Event Summary<textarea name="eventSummary" placeholder="Summarize the reported event, immediate action, known facts, and pending review items."></textarea></label>
               <div class="upload-zone">
-                <strong>Evidence Upload Placeholder</strong>
+                <label for="evidenceFiles">Evidence Upload</label>
+                <input
+                  id="evidenceFiles"
+                  name="evidenceFiles"
+                  type="file"
+                  multiple
+                  accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.csv,.txt,.rtf"
+                />
                 <span>Photos, statements, switching logs, LOTO forms, training records, and supervisor notes</span>
               </div>
               <button type="submit" class="primary-btn" id="submitForReview">Submit for Review</button>

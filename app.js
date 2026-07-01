@@ -19,6 +19,7 @@ const oldStorageKeys = ["safetyAccessProductionRecords", "safetyAccessSubmittedR
 const buildMarker = "Shared data ownership security build: 2026-07-01 00:00:00 -06:00";
 const accessSessionKey = "safetyAccessGateUnlocked";
 const config = window.SAFETY_ACCESS_CONFIG || {};
+const evidenceBucketName = config.evidenceBucketName || "safety-evidence";
 
 const blankState = {
   records: [],
@@ -399,7 +400,8 @@ function rowToRecord(row) {
     reDispatchConcern: row.redispatch_concern,
     managementReview: row.management_review,
     createdBy: row.created_by || row.data?.createdBy || "",
-    createdByEmail: row.created_by_email || row.data?.createdByEmail || ""
+    createdByEmail: row.created_by_email || row.data?.createdByEmail || "",
+    evidenceAttachments: row.data?.evidenceAttachments || []
   });
 }
 
@@ -615,6 +617,70 @@ function escapeHtml(value) {
   })[character]);
 }
 
+function formatFileSize(bytes = 0) {
+  const size = Number(bytes) || 0;
+  if (size < 1024) return `${size} B`;
+  if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
+  return `${(size / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function evidenceSafeName(name = "evidence-file") {
+  return String(name)
+    .replace(/[^a-zA-Z0-9._-]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 120) || "evidence-file";
+}
+
+async function getEvidenceUrl(path) {
+  if (!dbReady || !path) return "";
+  const { data } = await db.storage.from(evidenceBucketName).createSignedUrl(path, 60 * 60);
+  if (data?.signedUrl) return data.signedUrl;
+  const publicResult = db.storage.from(evidenceBucketName).getPublicUrl(path);
+  return publicResult?.data?.publicUrl || "";
+}
+
+async function uploadEvidenceFiles(files, recordId) {
+  const selectedFiles = [...(files || [])];
+  if (!selectedFiles.length) return [];
+  if (!dbReady || !currentUser) throw new Error("Supabase login is required before uploading evidence.");
+
+  const uploadedAt = new Date().toISOString();
+  const attachments = [];
+
+  for (const file of selectedFiles) {
+    const path = `${recordId}/${Date.now()}-${crypto.randomUUID()}-${evidenceSafeName(file.name)}`;
+    const { error } = await db.storage.from(evidenceBucketName).upload(path, file, {
+      cacheControl: "3600",
+      upsert: false,
+      contentType: file.type || "application/octet-stream"
+    });
+    if (error) throw new Error(`Evidence upload failed for ${file.name}: ${error.message}`);
+    attachments.push({
+      recordId,
+      fileName: file.name,
+      fileType: file.type || "Unknown",
+      fileSize: file.size,
+      fileSizeLabel: formatFileSize(file.size),
+      uploadedAt,
+      bucket: evidenceBucketName,
+      path,
+      url: await getEvidenceUrl(path)
+    });
+  }
+
+  return attachments;
+}
+
+function renderEvidenceAttachments(record) {
+  const attachments = Array.isArray(record.evidenceAttachments) ? record.evidenceAttachments : [];
+  if (!attachments.length) return '<div class="evidence-list empty-evidence">No evidence files attached.</div>';
+  return `<div class="evidence-list">${attachments.map((file) => {
+    const label = `${file.fileName || "Evidence file"} (${file.fileSizeLabel || formatFileSize(file.fileSize)})`;
+    const meta = `${file.fileType || "Unknown type"} | Uploaded ${file.uploadedAt ? new Date(file.uploadedAt).toLocaleString() : "date unavailable"}`;
+    return `<div class="evidence-item">${file.url ? `<a href="${escapeHtml(file.url)}" target="_blank" rel="noopener">${escapeHtml(label)}</a>` : `<strong>${escapeHtml(label)}</strong>`}<div class="meta">${escapeHtml(meta)}</div></div>`;
+  }).join("")}</div>`;
+}
+
 function chipClass(value) {
   const text = String(value || "");
   if (text.includes("Banned") || text.includes("Revoked") || text === "Critical") return "red";
@@ -819,7 +885,7 @@ function renderRecordLists() {
 function renderIncidents() {
   const records = activeRecords();
   document.getElementById("incidentList").innerHTML = records.length ? records
-    .map((r) => `<div class="record-item"><div><strong>${escapeHtml(r.date)} | ${escapeHtml(r.type)}</strong><div class="meta">${escapeHtml(r.name)} | ${escapeHtml(r.contractor)} | ${escapeHtml(r.project)}</div></div><div>${escapeHtml(r.notes)}<div class="meta">Stop work: ${escapeHtml(r.stopWork)} | Removed from site: ${escapeHtml(r.removedFromSite)} | Utility restriction: ${escapeHtml(r.utilityRestriction)}</div><div class="meta">RCA: ${escapeHtml(r.rca)} | Corrective action: ${escapeHtml(r.correctiveStatus)} | Re-dispatch concern: ${escapeHtml(r.reDispatchConcern)}</div></div><div>${chip(r.managementReview)}</div>${recordActions(r)}</div>`)
+    .map((r) => `<div class="record-item incident-card"><div><strong>${escapeHtml(r.date)} | ${escapeHtml(r.type)}</strong><div class="meta">${escapeHtml(r.name)} | ${escapeHtml(r.contractor)} | ${escapeHtml(r.project)}</div></div><div>${escapeHtml(r.notes)}<div class="meta">Stop work: ${escapeHtml(r.stopWork)} | Removed from site: ${escapeHtml(r.removedFromSite)} | Utility restriction: ${escapeHtml(r.utilityRestriction)}</div><div class="meta">RCA: ${escapeHtml(r.rca)} | Corrective action: ${escapeHtml(r.correctiveStatus)} | Re-dispatch concern: ${escapeHtml(r.reDispatchConcern)}</div>${renderEvidenceAttachments(r)}</div><div>${chip(r.managementReview)}</div>${recordActions(r)}</div>`)
     .join("") : emptyState("No records entered yet.");
 }
 
@@ -1007,7 +1073,8 @@ function blankRecord(overrides = {}) {
     managementReview: overrides.managementReview || "Active",
     submitted: true,
     createdBy: overrides.createdBy || "",
-    createdByEmail: overrides.createdByEmail || ""
+    createdByEmail: overrides.createdByEmail || "",
+    evidenceAttachments: Array.isArray(overrides.evidenceAttachments) ? overrides.evidenceAttachments : []
   };
 }
 
@@ -1286,16 +1353,31 @@ function submittedRecordFromForm(form) {
 async function submitForReview(event) {
   event.preventDefault();
   if (!canWrite()) return alert("Your account does not have permission to submit records.");
-  const record = submittedRecordFromForm(event.currentTarget);
+  const form = event.currentTarget;
+  const submitButton = document.getElementById("submitForReview");
+  const message = document.getElementById("submissionMessage");
+  const record = submittedRecordFromForm(form);
+  const evidenceFiles = form.elements.evidenceFiles?.files || [];
+  submitButton.disabled = true;
+  message.classList.remove("error-message");
+  message.textContent = evidenceFiles.length ? "Uploading evidence and submitting record..." : "Submitting record...";
   try {
+    record.evidenceAttachments = await uploadEvidenceFiles(evidenceFiles, record.id);
+    if (record.evidenceAttachments.length) record.evidence = "Complete";
     const saved = await saveAccessRecord(record);
     if (!saved) return;
     state.records.unshift(record);
     renderAll();
-    document.getElementById("submissionMessage").textContent = "Record submitted for review.";
+    form.reset();
+    document.getElementById("eventCategorySelect").selectedIndex = 0;
+    message.textContent = record.evidenceAttachments.length ? "Record submitted with evidence attached." : "Record submitted for review.";
     switchPage("incidents");
   } catch (error) {
+    message.classList.add("error-message");
+    message.textContent = `Unable to submit record: ${error.message}`;
     alert(`Unable to submit record: ${error.message}`);
+  } finally {
+    submitButton.disabled = false;
   }
 }
 

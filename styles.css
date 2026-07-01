@@ -562,11 +562,49 @@ textarea {
   background: #f8fbff;
 }
 
+.upload-zone label {
+  color: var(--ink);
+  font-weight: 800;
+}
+
+.upload-zone input[type="file"] {
+  width: 100%;
+  color: var(--muted);
+}
+
 .upload-zone span,
 .workflow-card p,
 .workflow-card li {
   color: var(--muted);
   line-height: 1.5;
+}
+
+.incident-card {
+  align-items: start;
+}
+
+.evidence-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}
+
+.evidence-item a {
+  color: var(--blue);
+  font-weight: 700;
+  text-decoration: none;
+  word-break: break-word;
+}
+
+.evidence-item a:hover {
+  text-decoration: underline;
+}
+
+.empty-evidence {
+  color: var(--muted);
+  font-size: 13px;
 }
 
 .form-message {
