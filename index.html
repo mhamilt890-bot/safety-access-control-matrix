@@ -59,6 +59,7 @@
           <button class="nav-item" data-page="corrective">Corrective Actions</button>
           <button class="nav-item" data-page="reports">Reports</button>
           <button class="nav-item" data-page="admin">Settings / Roles</button>
+          <button class="nav-item permission-hidden" data-page="userApprovals" id="userApprovalsNav">Admin / User Approvals</button>
         </nav>
         <div class="sidebar-note">
           <span>Access governance</span>
@@ -312,6 +313,17 @@
 
         <section id="admin" class="page">
           <div class="admin-grid" id="adminGrid"></div>
+        </section>
+
+        <section id="userApprovals" class="page">
+          <div class="panel">
+            <div class="panel-heading">
+              <h2>Admin / User Approvals</h2>
+              <span>Approve accounts, disable access, and assign roles</span>
+            </div>
+            <div id="userApprovalMessage" class="form-message"></div>
+            <div id="userApprovalsList" class="record-list"></div>
+          </div>
         </section>
       </main>
     </div>

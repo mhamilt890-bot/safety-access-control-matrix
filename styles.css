@@ -118,6 +118,13 @@ button {
   font-weight: 700;
 }
 
+.access-note {
+  margin: 12px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
 .permission-hidden {
   display: none !important;
 }
@@ -554,6 +561,22 @@ textarea {
   color: #15803d;
   font-size: 13px;
   font-weight: 700;
+}
+
+.form-message.error-message {
+  color: var(--red);
+}
+
+.approval-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+  align-items: center;
+}
+
+.approval-controls select {
+  min-width: 120px;
 }
 
 .empty-state {

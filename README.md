@@ -79,6 +79,12 @@ The passcode is checked by the Vercel serverless route `/api/verify-access-code`
 
 Users with no approved role see `Account pending approval.`
 
+The account login screen includes Create Account. New accounts are created in Supabase Auth and remain pending until an administrator approves the matching `public.profiles` row.
+
+## User Approvals
+
+After `mhamilt890@gmail.com` signs in with approved `admin` role, the sidebar shows `Admin / User Approvals`. That screen lists pending users first and allows the admin to approve users, disable users, and change roles to `viewer`, `reviewer`, or `admin`. Non-admin users cannot see or open the approvals screen.
+
 ## First Admin Approval
 
 After the first admin user exists in Supabase Auth, run this in Supabase SQL Editor:

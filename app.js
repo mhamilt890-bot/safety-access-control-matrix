@@ -23,7 +23,8 @@ const config = window.SAFETY_ACCESS_CONFIG || {};
 const blankState = {
   records: [],
   reportRecords: [],
-  roles: []
+  roles: [],
+  profiles: []
 };
 
 let state = JSON.parse(JSON.stringify(blankState));
@@ -80,9 +81,12 @@ function renderAuthGate(message = "") {
     <label>Email<input id="authGateEmail" type="email" autocomplete="email" required /></label>
     <label>Password<input id="authGatePassword" type="password" autocomplete="current-password" required /></label>
     <button class="primary-btn" type="submit">Sign In</button>
+    <button class="ghost-btn" id="createAccountBtn" type="button">Create Account</button>
+    <p class="access-note">New accounts require administrator approval before access is granted.</p>
   </form>`}
   <div class="access-error" id="authGateMessage" role="alert">${escapeHtml(message)}</div>`;
   document.getElementById("authGateForm")?.addEventListener("submit", signIn);
+  document.getElementById("createAccountBtn")?.addEventListener("click", createAccount);
   document.getElementById("authGateLogoutBtn")?.addEventListener("click", logoutAccessGate);
 }
 
@@ -254,6 +258,21 @@ async function loadRemoteState() {
   state.records = (recordsResult.data || []).map(rowToRecord);
   state.reportRecords = (reportsResult.data || []).map(rowToReport);
   state.roles = (rolesResult.data || []).map(rowToRole);
+  if (isAdmin()) await loadProfiles();
+}
+
+async function loadProfiles() {
+  if (!dbReady || !isAdmin()) {
+    state.profiles = [];
+    return;
+  }
+  const { data, error } = await db.from("profiles").select("id, email, role, approved, created_at, updated_at").order("approved", { ascending: true }).order("created_at", { ascending: false });
+  if (error) {
+    console.warn("Unable to load user approvals.", error);
+    state.profiles = [];
+    return;
+  }
+  state.profiles = data || [];
 }
 
 function recordToRow(record) {
@@ -365,6 +384,33 @@ async function signIn(event) {
     currentUser = data.session?.user || null;
     await loadCurrentUserRole();
     await evaluateAccess();
+  }
+}
+
+async function createAccount() {
+  if (!dbReady || !db) return alert("Supabase login is not configured.");
+  const email = (document.getElementById("authGateEmail")?.value || "").trim();
+  const password = document.getElementById("authGatePassword")?.value || "";
+  const message = document.getElementById("authGateMessage");
+  const button = document.getElementById("createAccountBtn");
+  if (!email || !password) return alert("Enter an email and password before creating an account.");
+  if (password.length < 6) return alert("Password must be at least 6 characters.");
+  button.disabled = true;
+  if (message) message.textContent = "";
+
+  try {
+    const { data, error } = await db.auth.signUp({ email, password });
+    if (error) {
+      if (message) message.textContent = error.message;
+      return;
+    }
+    currentUser = data.user || null;
+    currentUserRole = "";
+    normalizedUserRole = "";
+    state = JSON.parse(JSON.stringify(blankState));
+    showAuthGate("Account pending approval. An administrator must approve your account before dashboard data is visible.");
+  } finally {
+    button.disabled = false;
   }
 }
 
@@ -536,6 +582,10 @@ function chip(value) {
 
 function emptyState(message = "No records entered yet.") {
   return `<div class="empty-state">${message}</div>`;
+}
+
+function findRoleSelect(userId) {
+  return [...document.querySelectorAll("[data-user-role]")].find((select) => select.dataset.userRole === userId);
 }
 
 function tableEmptyState(message = "No records entered yet.") {
@@ -782,6 +832,61 @@ function renderAdmin() {
   document.getElementById("signOutBtn")?.addEventListener("click", signOut);
 }
 
+function renderUserApprovals() {
+  const container = document.getElementById("userApprovalsList");
+  if (!container) return;
+  if (!isAdmin()) {
+    container.innerHTML = emptyState("Admin access required.");
+    return;
+  }
+  const users = [...state.profiles].sort((a, b) => {
+    if (a.approved !== b.approved) return a.approved ? 1 : -1;
+    return String(b.created_at || "").localeCompare(String(a.created_at || ""));
+  });
+  container.innerHTML = users.length ? users.map((user) => {
+    const isCurrent = user.id === currentUser?.id;
+    const status = user.approved ? "Approved" : "Pending";
+    const role = user.role || "viewer";
+    return `<div class="record-item user-approval-item">
+      <div><strong>${escapeHtml(user.email || "No email")}</strong><div class="meta">Created: ${escapeHtml(user.created_at || "Not available")}</div></div>
+      <div>${chip(status)}<div class="meta">Last updated: ${escapeHtml(user.updated_at || "Not available")}</div></div>
+      <div class="approval-controls">
+        <select data-user-role="${escapeHtml(user.id)}" ${isCurrent ? "disabled" : ""}>
+          ${["viewer", "reviewer", "admin"].map((option) => `<option value="${option}"${option === role ? " selected" : ""}>${option}</option>`).join("")}
+        </select>
+        <button class="primary-btn" data-approve-user="${escapeHtml(user.id)}" ${isCurrent ? "disabled" : ""}>Approve user</button>
+        <button class="ghost-btn" data-update-user-role="${escapeHtml(user.id)}" ${isCurrent ? "disabled" : ""}>Change role</button>
+        <button class="ghost-btn danger-btn" data-disable-user="${escapeHtml(user.id)}" ${isCurrent ? "disabled" : ""}>Disable/Deny user</button>
+      </div>
+    </div>`;
+  }).join("") : emptyState("No user accounts found.");
+}
+
+function userApprovalMessage(message, isError = false) {
+  const target = document.getElementById("userApprovalMessage");
+  if (!target) return;
+  target.textContent = message;
+  target.classList.toggle("error-message", isError);
+}
+
+async function updateUserProfile(userId, changes, successMessage) {
+  if (!isAdmin()) return userApprovalMessage("Only the administrator can manage user approvals.", true);
+  if (userId === currentUser?.id) return userApprovalMessage("You cannot approve, disable, or change your own admin account here.", true);
+  const selectedRole = changes.role || findRoleSelect(userId)?.value || "viewer";
+  if (selectedRole === "admin" && !isAdmin()) return userApprovalMessage("Only mhamilt890@gmail.com can assign admin role.", true);
+  const payload = { ...changes };
+  if (payload.approved === true && !payload.role) payload.role = selectedRole || "viewer";
+  try {
+    const { error } = await db.from("profiles").update(payload).eq("id", userId);
+    if (error) throw error;
+    userApprovalMessage(successMessage);
+    await loadProfiles();
+    renderUserApprovals();
+  } catch (error) {
+    userApprovalMessage(`Unable to update user: ${error.message}`, true);
+  }
+}
+
 function recordRoleActions(role) {
   if (!canManageUsers()) return "";
   return `<div class="record-actions"><button class="ghost-btn" data-edit-role="${role.id}">Edit</button><button class="ghost-btn danger-btn" data-delete-role="${role.id}">Delete</button></div>`;
@@ -801,6 +906,7 @@ function renderAll() {
   renderNotifications();
   renderAudit();
   renderAdmin();
+  renderUserApprovals();
   updatePermissionControls();
 }
 
@@ -814,6 +920,7 @@ function updatePermissionControls() {
   document.getElementById("reportCsvImport")?.classList.toggle("permission-hidden", !writable);
   document.getElementById("exportBtn")?.classList.toggle("permission-hidden", !exportAllowed);
   document.getElementById("reportCsvExport")?.classList.toggle("permission-hidden", !exportAllowed);
+  document.getElementById("userApprovalsNav")?.classList.toggle("permission-hidden", !isAdmin());
 }
 
 function blankRecord(overrides = {}) {
@@ -1158,6 +1265,7 @@ async function clearLocalRecords() {
 }
 
 function switchPage(pageId) {
+  if (pageId === "userApprovals" && !isAdmin()) return;
   document.querySelectorAll(".page").forEach((page) => page.classList.toggle("active-page", page.id === pageId));
   document.querySelectorAll(".nav-item").forEach((item) => item.classList.toggle("active", item.dataset.page === pageId));
 }
@@ -1270,6 +1378,9 @@ function handleDocumentClick(event) {
   const deleteReportId = event.target.dataset.deleteReport;
   const editRoleId = event.target.dataset.editRole;
   const deleteRoleId = event.target.dataset.deleteRole;
+  const approveUserId = event.target.dataset.approveUser;
+  const disableUserId = event.target.dataset.disableUser;
+  const updateUserRoleId = event.target.dataset.updateUserRole;
 
   if (editRecordId) openRecordEditor(state.records.find((record) => record.id === editRecordId), "Record");
   if (deleteRecordId) deleteRecord(deleteRecordId);
@@ -1277,6 +1388,12 @@ function handleDocumentClick(event) {
   if (deleteReportId) deleteReport(deleteReportId);
   if (editRoleId) openRoleEditor(state.roles.find((role) => role.id === editRoleId));
   if (deleteRoleId) deleteRole(deleteRoleId);
+  if (approveUserId) updateUserProfile(approveUserId, { approved: true }, "User approved.");
+  if (disableUserId) updateUserProfile(disableUserId, { approved: false }, "User disabled.");
+  if (updateUserRoleId) {
+    const role = findRoleSelect(updateUserRoleId)?.value || "viewer";
+    updateUserProfile(updateUserRoleId, { role }, "Role updated.");
+  }
 }
 
 async function init() {

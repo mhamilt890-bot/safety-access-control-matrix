@@ -20,3 +20,6 @@ update public.profiles set role = 'admin', approved = true where email = 'mhamil
 
 Final access rule:
 All approved users can see all shared records and create records. Normal users can edit/delete only records they created. mhamilt890@gmail.com with role admin can edit/delete all records and manage users.
+
+Create Account note:
+The login screen allows users to create an account, but new accounts remain pending until an administrator approves the matching public.profiles row.

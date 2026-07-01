@@ -105,12 +105,16 @@ Do not upload generated folders unless your host requires them. The `dist` folde
 14. Use Search and filters for contractor, project, utility customer, status, severity, incident type, and banned status.
 15. Open Restricted / Banned List, Corrective Actions, Reports, and Settings / Roles.
 16. Test admin `mhamilt890@gmail.com`: add/edit/delete/export and user management are available for all records.
-17. Test a normal approved user: all shared records are visible, new records can be created, own records can be edited/deleted, other users' records cannot be edited/deleted.
-18. Test export: approved users export the full shared database view.
-19. Open Reports and use PDF / Print Report to save a PDF through the browser print dialog.
-20. Test Logout and confirm the dashboard is hidden again.
-21. Test Clear All Local Records under Settings / Roles and confirm it clears old browser prototype keys only.
-22. Test the site on a phone-sized browser window and confirm navigation and tables remain usable.
+17. Open Admin / User Approvals as `mhamilt890@gmail.com` and confirm pending users appear at the top.
+18. Approve a pending user with the default viewer role and confirm `User approved.`
+19. Change a user role and confirm `Role updated.`
+20. Disable a user and confirm `User disabled.`
+21. Test a normal approved user: all shared records are visible, new records can be created, own records can be edited/deleted, other users' records cannot be edited/deleted.
+22. Test export: approved users export the full shared database view.
+23. Open Reports and use PDF / Print Report to save a PDF through the browser print dialog.
+24. Test Logout and confirm the dashboard is hidden again.
+25. Test Clear All Local Records under Settings / Roles and confirm it clears old browser prototype keys only.
+26. Test the site on a phone-sized browser window and confirm navigation and tables remain usable.
 
 ## Storage Note
 
