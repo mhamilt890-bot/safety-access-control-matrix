@@ -37,6 +37,7 @@ let normalizedUserRole = "";
 let appStarted = false;
 let authListenerAttached = false;
 const adminEmail = "mhamilt890@gmail.com";
+let profileDebug = {};
 
 function isAccessUnlocked() {
   return sessionStorage.getItem(accessSessionKey) === "true";
@@ -77,7 +78,7 @@ function renderAuthGate(message = "") {
   </div>
   <h1 id="authGateTitle">${pending ? "Account Pending Approval" : "Account Login Required"}</h1>
   <p>${pending ? "Account pending approval. An admin must approve your account and assign a role before dashboard data is visible." : "Sign in with an approved company account before dashboard data is visible."}</p>
-  ${pending ? `<p class="meta">${escapeHtml(currentUser.email || "")}</p><button class="ghost-btn" id="authGateLogoutBtn" type="button">Logout</button>` : `<form id="authGateForm">
+  ${pending ? `<p class="meta">${escapeHtml(currentUser.email || "")}</p>${profileDebugLine()}<button class="ghost-btn" id="authGateLogoutBtn" type="button">Logout</button>` : `<form id="authGateForm">
     <label>Email<input id="authGateEmail" type="email" autocomplete="email" required /></label>
     <label>Password<input id="authGatePassword" type="password" autocomplete="current-password" required /></label>
     <button class="primary-btn" type="submit">Sign In</button>
@@ -88,6 +89,18 @@ function renderAuthGate(message = "") {
   document.getElementById("authGateForm")?.addEventListener("submit", signIn);
   document.getElementById("createAccountBtn")?.addEventListener("click", createAccount);
   document.getElementById("authGateLogoutBtn")?.addEventListener("click", logoutAccessGate);
+}
+
+function profileDebugLine() {
+  const fields = [
+    ["auth user id", profileDebug.authUserId],
+    ["auth email", profileDebug.authEmail],
+    ["profile id", profileDebug.profileId],
+    ["profile email", profileDebug.profileEmail],
+    ["profile role", profileDebug.profileRole],
+    ["profile approved", profileDebug.profileApproved]
+  ];
+  return `<div class="profile-debug">${fields.map(([label, value]) => `<div><strong>${label}:</strong> ${escapeHtml(value ?? "not found")}</div>`).join("")}</div>`;
 }
 
 async function evaluateAccess() {
@@ -230,13 +243,41 @@ function canDeleteRecord(record) {
 async function loadCurrentUserRole() {
   currentUserRole = "";
   normalizedUserRole = "";
+  profileDebug = {
+    authUserId: currentUser?.id || "",
+    authEmail: currentUser?.email || "",
+    profileId: "",
+    profileEmail: "",
+    profileRole: "",
+    profileApproved: ""
+  };
   if (!dbReady || !currentUser) return;
-  const { data, error } = await db.from("profiles").select("role, approved").eq("id", currentUser.id).maybeSingle();
-  if (!error && data?.approved === false) return;
-  if (!error && data?.role) {
-    currentUserRole = data.role;
+
+  const authEmail = String(currentUser.email || "").trim().toLowerCase();
+  let profile = null;
+  const byId = await db.from("profiles").select("id, email, role, approved").eq("id", currentUser.id).maybeSingle();
+  if (!byId.error && byId.data) {
+    profile = byId.data;
+  } else if (authEmail) {
+    const byEmail = await db.from("profiles").select("id, email, role, approved").ilike("email", authEmail).maybeSingle();
+    if (!byEmail.error && byEmail.data) profile = byEmail.data;
+  }
+
+  profileDebug = {
+    authUserId: currentUser.id || "",
+    authEmail: currentUser.email || "",
+    profileId: profile?.id || "",
+    profileEmail: profile?.email || "",
+    profileRole: profile?.role || "",
+    profileApproved: profile ? String(profile.approved === true) : ""
+  };
+
+  const approved = profile?.approved === true;
+  if (!approved) return;
+  if (profile?.role) {
+    currentUserRole = profile.role;
     normalizedUserRole = normalizeRole(currentUserRole) || "approved";
-  } else if (!error && data?.approved === true) {
+  } else {
     currentUserRole = "approved";
     normalizedUserRole = "approved";
   }

@@ -125,6 +125,20 @@ button {
   line-height: 1.4;
 }
 
+.profile-debug {
+  display: grid;
+  gap: 4px;
+  margin: 12px 0;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--muted);
+  background: #f8fafc;
+  font-size: 12px;
+  line-height: 1.35;
+  word-break: break-word;
+}
+
 .permission-hidden {
   display: none !important;
 }
