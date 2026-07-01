@@ -89,26 +89,28 @@ Do not upload generated folders unless your host requires them. The `dist` folde
 ## How To Confirm The Deployed App Works
 
 1. Open the deployed URL in Chrome or Microsoft Edge.
-2. Confirm the Dashboard loads with KPI cards and charts.
-3. Open Settings / Roles and sign in with a Supabase user.
-4. Confirm the app shows the Secure Access Required screen before any dashboard data is visible.
-5. Enter the Vercel `APP_ACCESS_CODE`.
-6. Confirm the visible marker starts with `Passcode access gate build:`.
-7. Open Worker Matrix and confirm the blank empty-state message displays when the database has no records.
-8. Click Add Worker, enter a record, and save it.
-9. Click New Event, complete the Serious Event Intake form, and submit the record for review.
-10. Confirm the submitted record appears in Worker Matrix and Incident Records.
-11. Submit or edit a record with Restricted, Suspended, Banned From Site, or substantiated status and confirm it appears in Restricted / Banned List.
-12. Refresh the browser and confirm saved records persist from Supabase.
-13. Use Search and filters for contractor, project, utility customer, status, severity, incident type, and banned status.
-14. Open Restricted / Banned List, Corrective Actions, Reports, and Settings / Roles.
-15. Use Edit, Delete, Save, and Cancel on manually entered records.
-16. Click CSV Export and confirm a `.csv` file downloads.
-17. Import a CSV and confirm imported records persist to Supabase.
-18. Open Reports and use PDF / Print Report to save a PDF through the browser print dialog.
-19. Test Logout and confirm the dashboard is hidden again.
-20. Test Clear All Local Records under Settings / Roles and confirm it clears old browser prototype keys only.
-21. Test the site on a phone-sized browser window and confirm navigation and tables remain usable.
+2. Confirm the app shows the Secure Access Required screen before any dashboard data is visible.
+3. Enter the Vercel `APP_ACCESS_CODE`.
+4. Sign in with Supabase Auth.
+5. If the account is not approved, confirm it shows `Account pending approval.` and no dashboard data.
+6. Approve the first admin in Supabase SQL Editor:
+   `update public.profiles set role = 'admin', approved = true where email = 'mhamilt890@gmail.com';`
+7. Sign in again and confirm the visible marker starts with `Shared data ownership security build:`.
+8. Open Worker Matrix and confirm the blank empty-state message displays when the database has no records.
+9. Click Add Worker, enter a record, and save it.
+10. Click New Event, complete the Serious Event Intake form, and submit the record for review.
+11. Confirm the submitted record appears in Worker Matrix and Incident Records.
+12. Submit or edit a record with Restricted, Suspended, Banned From Site, or substantiated status and confirm it appears in Restricted / Banned List.
+13. Refresh the browser and confirm saved records persist from Supabase.
+14. Use Search and filters for contractor, project, utility customer, status, severity, incident type, and banned status.
+15. Open Restricted / Banned List, Corrective Actions, Reports, and Settings / Roles.
+16. Test admin `mhamilt890@gmail.com`: add/edit/delete/export and user management are available for all records.
+17. Test a normal approved user: all shared records are visible, new records can be created, own records can be edited/deleted, other users' records cannot be edited/deleted.
+18. Test export: approved users export the full shared database view.
+19. Open Reports and use PDF / Print Report to save a PDF through the browser print dialog.
+20. Test Logout and confirm the dashboard is hidden again.
+21. Test Clear All Local Records under Settings / Roles and confirm it clears old browser prototype keys only.
+22. Test the site on a phone-sized browser window and confirm navigation and tables remain usable.
 
 ## Storage Note
 
@@ -121,4 +123,6 @@ This version starts blank unless records already exist in Supabase. No fake, sam
 - Hosting: Vercel static build output in `dist`.
 - Configuration: `build.js` writes `dist/config.js` from Vercel environment variables.
 - Audit trail: app write actions insert append-only rows into `audit_log`; no update/delete policy is created for that table.
-- Access gate: `/api/verify-access-code` checks `APP_ACCESS_CODE` on the Vercel server before the dashboard initializes.
+- Access gate: `/api/verify-access-code` checks `APP_ACCESS_CODE` on the Vercel server before Supabase login appears.
+- Account gate: Supabase Auth plus `public.profiles.role` and `public.profiles.approved` controls dashboard access.
+- Ownership: all approved users read shared records; record creators can edit/delete their own records; `mhamilt890@gmail.com` with role `admin` can edit/delete all records.

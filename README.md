@@ -63,8 +63,30 @@ If Supabase reports a missing column such as `incidents.access_record_id`, run `
 
 ## Version Marker
 
-Open Settings / Roles and confirm the visible marker starts with `Passcode access gate build:`.
+Open Settings / Roles and confirm the visible marker starts with `Shared data ownership security build:`.
 
-## Access Gate
+## Access And Roles
 
-The live dashboard is hidden behind a simple passcode screen. Set the passcode in Vercel as `APP_ACCESS_CODE`. The passcode is checked by the Vercel serverless route `/api/verify-access-code`; it is not written into `config.js`.
+The live dashboard is protected by two layers:
+
+1. Optional temporary passcode gate using Vercel `APP_ACCESS_CODE`.
+2. Required Supabase Auth account login with an approved role.
+
+The passcode is checked by the Vercel serverless route `/api/verify-access-code`; it is not written into `config.js`. Dashboard data does not load until the Supabase user has `profiles.approved = true`.
+
+- `mhamilt890@gmail.com` with role `admin`: view, add, edit, delete, export, and manage all records/users.
+- Approved non-admin users: view all shared records, create records, export shared records, and edit/delete only records they personally created.
+
+Users with no approved role see `Account pending approval.`
+
+## First Admin Approval
+
+After the first admin user exists in Supabase Auth, run this in Supabase SQL Editor:
+
+```sql
+update public.profiles
+set role = 'admin', approved = true
+where email = 'mhamilt890@gmail.com';
+```
+
+In Supabase Authentication settings, disable open public signup for manager/business use. If a user account is created later, approve it by setting `approved = true`. Do not set another account to `admin` unless you intentionally want to change the full-control administrator later.

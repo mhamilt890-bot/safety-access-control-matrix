@@ -16,7 +16,7 @@ const eventCategories = [
 
 const storageKey = "safetyAccessControlMatrixLocalData";
 const oldStorageKeys = ["safetyAccessProductionRecords", "safetyAccessSubmittedRecords", storageKey];
-const buildMarker = "Passcode access gate build: 2026-06-30 17:35:00 -06:00";
+const buildMarker = "Shared data ownership security build: 2026-07-01 00:00:00 -06:00";
 const accessSessionKey = "safetyAccessGateUnlocked";
 const config = window.SAFETY_ACCESS_CONFIG || {};
 
@@ -31,8 +31,11 @@ let editing = null;
 let db = null;
 let dbReady = false;
 let currentUser = null;
-let currentUserRole = "Safety Reviewer";
+let currentUserRole = "";
+let normalizedUserRole = "";
 let appStarted = false;
+let authListenerAttached = false;
+const adminEmail = "mhamilt890@gmail.com";
 
 function isAccessUnlocked() {
   return sessionStorage.getItem(accessSessionKey) === "true";
@@ -45,20 +48,73 @@ function setAccessUnlocked(value) {
 
 function showAccessGate(message = "") {
   document.body.classList.add("access-locked");
+  document.body.classList.add("auth-locked");
   document.getElementById("appShell")?.setAttribute("aria-hidden", "true");
   const gate = document.getElementById("accessGate");
   gate?.removeAttribute("aria-hidden");
+  document.getElementById("authGate")?.setAttribute("aria-hidden", "true");
   const messageElement = document.getElementById("accessGateMessage");
   if (messageElement) messageElement.textContent = message;
 }
 
-async function unlockApp() {
+function showAuthGate(message = "") {
   document.body.classList.remove("access-locked");
+  document.body.classList.add("auth-locked");
+  document.getElementById("appShell")?.setAttribute("aria-hidden", "true");
+  document.getElementById("accessGate")?.setAttribute("aria-hidden", "true");
+  document.getElementById("authGate")?.removeAttribute("aria-hidden");
+  renderAuthGate(message);
+}
+
+function renderAuthGate(message = "") {
+  const content = document.getElementById("authGateContent");
+  if (!content) return;
+  const pending = currentUser && !hasApprovedRole();
+  content.innerHTML = `<div class="brand access-brand">
+    <div class="brand-mark">SA</div>
+    <div><strong>Safety Access</strong><span>Control Matrix</span></div>
+  </div>
+  <h1 id="authGateTitle">${pending ? "Account Pending Approval" : "Account Login Required"}</h1>
+  <p>${pending ? "Account pending approval. An admin must approve your account and assign a role before dashboard data is visible." : "Sign in with an approved company account before dashboard data is visible."}</p>
+  ${pending ? `<p class="meta">${escapeHtml(currentUser.email || "")}</p><button class="ghost-btn" id="authGateLogoutBtn" type="button">Logout</button>` : `<form id="authGateForm">
+    <label>Email<input id="authGateEmail" type="email" autocomplete="email" required /></label>
+    <label>Password<input id="authGatePassword" type="password" autocomplete="current-password" required /></label>
+    <button class="primary-btn" type="submit">Sign In</button>
+  </form>`}
+  <div class="access-error" id="authGateMessage" role="alert">${escapeHtml(message)}</div>`;
+  document.getElementById("authGateForm")?.addEventListener("submit", signIn);
+  document.getElementById("authGateLogoutBtn")?.addEventListener("click", logoutAccessGate);
+}
+
+async function evaluateAccess() {
+  await initDatabase();
+  if (!dbReady) {
+    showAuthGate("Supabase login is not configured. Dashboard data is locked.");
+    return;
+  }
+  if (!currentUser || !hasApprovedRole()) {
+    showAuthGate(currentUser ? "Account pending approval." : "");
+    return;
+  }
+  await unlockApp();
+}
+
+async function unlockApp() {
+  if (!hasApprovedRole()) {
+    showAuthGate(currentUser ? "Account pending approval." : "");
+    return;
+  }
+  document.body.classList.remove("access-locked");
+  document.body.classList.remove("auth-locked");
   document.getElementById("appShell")?.setAttribute("aria-hidden", "false");
   document.getElementById("accessGate")?.setAttribute("aria-hidden", "true");
+  document.getElementById("authGate")?.setAttribute("aria-hidden", "true");
   if (!appStarted) {
     appStarted = true;
     await init();
+  } else {
+    await loadRemoteState();
+    renderAll();
   }
 }
 
@@ -85,7 +141,7 @@ async function verifyAccessCode(event) {
     }
     setAccessUnlocked(true);
     input.value = "";
-    await unlockApp();
+    await evaluateAccess();
   } catch (_error) {
     message.textContent = "Unable to verify access code. Check the deployment setup.";
   } finally {
@@ -95,39 +151,96 @@ async function verifyAccessCode(event) {
 
 function logoutAccessGate() {
   setAccessUnlocked(false);
+  db?.auth?.signOut();
+  state = JSON.parse(JSON.stringify(blankState));
   showAccessGate("Logged out.");
 }
 
 async function initDatabase() {
+  if (dbReady) return;
   if (!config.supabaseUrl || !config.supabaseAnonKey || !window.supabase) return;
   db = window.supabase.createClient(config.supabaseUrl, config.supabaseAnonKey);
   dbReady = true;
   const { data } = await db.auth.getSession();
   currentUser = data.session?.user || null;
   await loadCurrentUserRole();
+  if (authListenerAttached) return;
+  authListenerAttached = true;
   db.auth.onAuthStateChange(async (_event, session) => {
     currentUser = session?.user || null;
     await loadCurrentUserRole();
-    await loadRemoteState();
-    renderAll();
+    if (isAccessUnlocked() && hasApprovedRole()) {
+      await unlockApp();
+    } else if (isAccessUnlocked()) {
+      showAuthGate(currentUser ? "Account pending approval." : "");
+    }
   });
 }
 
+function normalizeRole(role) {
+  const value = String(role || "").trim().toLowerCase();
+  if (["admin", "system admin", "safety admin"].includes(value)) return "admin";
+  if (["reviewer", "safety reviewer", "safety manager", "editor"].includes(value)) return "reviewer";
+  if (["viewer", "read only", "read-only"].includes(value)) return "viewer";
+  return "";
+}
+
+function hasApprovedRole() {
+  return Boolean(currentUser && (isAdmin() || ["admin", "reviewer", "viewer", "approved"].includes(normalizedUserRole)));
+}
+
+function canView() {
+  return hasApprovedRole();
+}
+
 function canWrite() {
-  const writeRoles = ["System Admin", "Safety Admin", "Safety Manager", "Safety Reviewer", "Editor"];
-  return !dbReady || (currentUser && writeRoles.includes(currentUserRole));
+  return hasApprovedRole();
+}
+
+function isAdmin() {
+  return String(currentUser?.email || "").toLowerCase() === adminEmail && normalizedUserRole === "admin";
+}
+
+function canManageUsers() {
+  return isAdmin();
+}
+
+function canExport() {
+  return hasApprovedRole();
+}
+
+function ownsRecord(record) {
+  if (!record || !currentUser) return false;
+  return record.createdBy === currentUser.id ||
+    String(record.createdByEmail || "").toLowerCase() === String(currentUser.email || "").toLowerCase();
+}
+
+function canEditRecord(record) {
+  return isAdmin() || ownsRecord(record);
+}
+
+function canDeleteRecord(record) {
+  return isAdmin() || ownsRecord(record);
 }
 
 async function loadCurrentUserRole() {
-  currentUserRole = "Safety Reviewer";
+  currentUserRole = "";
+  normalizedUserRole = "";
   if (!dbReady || !currentUser) return;
-  const { data, error } = await db.from("profiles").select("role").eq("id", currentUser.id).maybeSingle();
-  if (!error && data?.role) currentUserRole = data.role;
+  const { data, error } = await db.from("profiles").select("role, approved").eq("id", currentUser.id).maybeSingle();
+  if (!error && data?.approved === false) return;
+  if (!error && data?.role) {
+    currentUserRole = data.role;
+    normalizedUserRole = normalizeRole(currentUserRole) || "approved";
+  } else if (!error && data?.approved === true) {
+    currentUserRole = "approved";
+    normalizedUserRole = "approved";
+  }
 }
 
 async function loadRemoteState() {
   state = JSON.parse(JSON.stringify(blankState));
-  if (!dbReady || !currentUser) return;
+  if (!dbReady || !canView()) return;
   const [recordsResult, reportsResult, rolesResult] = await Promise.all([
     db.from("access_records").select("*").order("created_at", { ascending: false }),
     db.from("report_records").select("*").order("created_at", { ascending: false }),
@@ -177,7 +290,8 @@ function recordToRow(record) {
     corrective_status: record.correctiveStatus,
     redispatch_concern: record.reDispatchConcern,
     management_review: record.managementReview,
-    created_by: currentUser?.id || null,
+    created_by: record.createdBy || currentUser?.id || null,
+    created_by_email: record.createdByEmail || currentUser?.email || null,
     data: record
   };
 }
@@ -216,46 +330,52 @@ function rowToRecord(row) {
     rca: row.rca,
     correctiveStatus: row.corrective_status,
     reDispatchConcern: row.redispatch_concern,
-    managementReview: row.management_review
+    managementReview: row.management_review,
+    createdBy: row.created_by || row.data?.createdBy || "",
+    createdByEmail: row.created_by_email || row.data?.createdByEmail || ""
   });
 }
 
 function reportToRow(report) {
-  return { id: report.id, title: report.title, report_date: report.date || null, owner: report.owner, notes: report.notes, created_by: currentUser?.id || null, data: report };
+  return { id: report.id, title: report.title, report_date: report.date || null, owner: report.owner, notes: report.notes, created_by: report.createdBy || currentUser?.id || null, created_by_email: report.createdByEmail || currentUser?.email || null, data: report };
 }
 
 function rowToReport(row) {
-  return { ...(row.data || {}), id: row.id, title: row.title || row.data?.title || "", date: row.report_date || row.data?.date || "", owner: row.owner || row.data?.owner || "", notes: row.notes || row.data?.notes || "" };
+  return { ...(row.data || {}), id: row.id, title: row.title || row.data?.title || "", date: row.report_date || row.data?.date || "", owner: row.owner || row.data?.owner || "", notes: row.notes || row.data?.notes || "", createdBy: row.created_by || row.data?.createdBy || "", createdByEmail: row.created_by_email || row.data?.createdByEmail || "" };
 }
 
 function roleToRow(role) {
-  return { id: role.id, role: role.role, permissions: role.permissions, audit: role.audit, created_by: currentUser?.id || null, data: role };
+  return { id: role.id, role: role.role, permissions: role.permissions, audit: role.audit, created_by: role.createdBy || currentUser?.id || null, created_by_email: role.createdByEmail || currentUser?.email || null, data: role };
 }
 
 function rowToRole(row) {
   return { ...(row.data || {}), id: row.id, role: row.role || row.data?.role || "", permissions: row.permissions || row.data?.permissions || "", audit: row.audit || row.data?.audit || "Yes" };
 }
 
-async function signIn() {
-  const email = document.getElementById("authEmail")?.value.trim();
-  const password = document.getElementById("authPassword")?.value;
+async function signIn(event) {
+  event?.preventDefault();
+  if (!dbReady || !db) return alert("Supabase login is not configured.");
+  const email = (document.getElementById("authGateEmail")?.value || document.getElementById("authEmail")?.value || "").trim();
+  const password = document.getElementById("authGatePassword")?.value || document.getElementById("authPassword")?.value;
   if (!email || !password) return alert("Enter an email and password.");
   const { error } = await db.auth.signInWithPassword({ email, password });
   if (error) alert(error.message);
-}
-
-async function signUp() {
-  const email = document.getElementById("authEmail")?.value.trim();
-  const password = document.getElementById("authPassword")?.value;
-  if (!email || !password) return alert("Enter an email and password.");
-  const { error } = await db.auth.signUp({ email, password });
-  if (error) alert(error.message);
-  else alert("User created. Check email confirmation settings in Supabase, then sign in.");
+  else {
+    const { data } = await db.auth.getSession();
+    currentUser = data.session?.user || null;
+    await loadCurrentUserRole();
+    await evaluateAccess();
+  }
 }
 
 async function signOut() {
   const { error } = await db.auth.signOut();
   if (error) alert(error.message);
+  currentUser = null;
+  currentUserRole = "";
+  normalizedUserRole = "";
+  state = JSON.parse(JSON.stringify(blankState));
+  showAuthGate("Signed out.");
 }
 
 async function saveAccessRecord(record) {
@@ -263,6 +383,8 @@ async function saveAccessRecord(record) {
     alert("Please sign in with an authorized role before saving records.");
     return false;
   }
+  record.createdBy = record.createdBy || currentUser?.id || "";
+  record.createdByEmail = record.createdByEmail || currentUser?.email || "";
   if (dbReady) {
     const { error } = await db.from("access_records").upsert(recordToRow(record));
     if (error) throw error;
@@ -282,7 +404,8 @@ async function syncDerivedRecords(record) {
     sif: record.sif,
     investigation: record.investigation,
     notes: record.notes,
-    created_by: currentUser?.id || null,
+    created_by: record.createdBy || currentUser?.id || null,
+    created_by_email: record.createdByEmail || currentUser?.email || null,
     data: record
   };
   const { error: incidentError } = await db.from("incidents").upsert(incidentRow);
@@ -299,7 +422,8 @@ async function syncDerivedRecords(record) {
       restriction_scope: record.scope,
       disposition: record.disposition,
       review_date: record.reinstatement || null,
-      created_by: currentUser?.id || null,
+      created_by: record.createdBy || currentUser?.id || null,
+      created_by_email: record.createdByEmail || currentUser?.email || null,
       data: record
     };
     const { error } = await db.from("restricted_banned_records").upsert(restrictedRow);
@@ -318,7 +442,8 @@ async function syncDerivedRecords(record) {
       status: record.correctiveStatus,
       review_date: record.reinstatement || null,
       evidence: record.evidence,
-      created_by: currentUser?.id || null,
+      created_by: record.createdBy || currentUser?.id || null,
+      created_by_email: record.createdByEmail || currentUser?.email || null,
       data: record
     };
     const { error } = await db.from("corrective_actions").upsert(actionRow);
@@ -334,6 +459,8 @@ async function saveReportRecord(report) {
     alert("Please sign in with an authorized role before saving report records.");
     return false;
   }
+  report.createdBy = report.createdBy || currentUser?.id || "";
+  report.createdByEmail = report.createdByEmail || currentUser?.email || "";
   if (dbReady) {
     const { error } = await db.from("report_records").upsert(reportToRow(report));
     if (error) throw error;
@@ -343,7 +470,7 @@ async function saveReportRecord(report) {
 }
 
 async function saveRoleRecord(role) {
-  if (!canWrite()) {
+  if (!canManageUsers()) {
     alert("Please sign in with an authorized role before saving roles.");
     return false;
   }
@@ -356,10 +483,6 @@ async function saveRoleRecord(role) {
 }
 
 async function deleteRemoteRecord(table, id) {
-  if (!canWrite()) {
-    alert("Please sign in with an authorized role before deleting records.");
-    return false;
-  }
   if (dbReady) {
     const { error } = await db.from(table).delete().eq("id", id);
     if (error) throw error;
@@ -552,7 +675,10 @@ function renderFilters() {
 }
 
 function recordActions(record) {
-  return `<div class="record-actions"><button class="ghost-btn" data-edit-record="${record.id}">Edit</button><button class="ghost-btn danger-btn" data-delete-record="${record.id}">Delete</button></div>`;
+  const canEdit = canEditRecord(record);
+  const canRemove = canDeleteRecord(record);
+  if (!canEdit && !canRemove) return "";
+  return `<div class="record-actions">${canEdit ? `<button class="ghost-btn" data-edit-record="${record.id}">Edit</button>` : ""}${canRemove ? `<button class="ghost-btn danger-btn" data-delete-record="${record.id}">Delete</button>` : ""}</div>`;
 }
 
 function renderMatrix() {
@@ -618,12 +744,15 @@ function renderReports() {
   ];
   const summary = current.length ? items.map(([label, value]) => `<div class="summary-item"><span>${label}</span><strong>${value}</strong></div>`).join("") : emptyState("No records entered yet.");
   const reportRecords = state.reportRecords.length ? state.reportRecords.map((r) => `<div class="record-item"><div><strong>${escapeHtml(r.title)}</strong><div class="meta">${escapeHtml(r.date)} | ${escapeHtml(r.owner)}</div></div><div>${escapeHtml(r.notes)}</div><div>${recordReportActions(r)}</div></div>`).join("") : emptyState("No records entered yet.");
-  document.getElementById("reportSummary").innerHTML = `${summary}<div class="section-actions"><button class="primary-btn" id="addReportRecord">Add Report Record</button></div><div class="record-list">${reportRecords}</div>`;
-  document.getElementById("addReportRecord").addEventListener("click", () => openReportEditor());
+  document.getElementById("reportSummary").innerHTML = `${summary}${canWrite() ? '<div class="section-actions"><button class="primary-btn" id="addReportRecord">Add Report Record</button></div>' : ""}<div class="record-list">${reportRecords}</div>`;
+  document.getElementById("addReportRecord")?.addEventListener("click", () => openReportEditor());
 }
 
 function recordReportActions(record) {
-  return `<div class="record-actions"><button class="ghost-btn" data-edit-report="${record.id}">Edit</button><button class="ghost-btn danger-btn" data-delete-report="${record.id}">Delete</button></div>`;
+  const canEdit = canEditRecord(record);
+  const canRemove = canDeleteRecord(record);
+  if (!canEdit && !canRemove) return "";
+  return `<div class="record-actions">${canEdit ? `<button class="ghost-btn" data-edit-report="${record.id}">Edit</button>` : ""}${canRemove ? `<button class="ghost-btn danger-btn" data-delete-report="${record.id}">Delete</button>` : ""}</div>`;
 }
 
 function renderNotifications() {
@@ -645,17 +774,16 @@ function renderAdmin() {
     .join("") : emptyState("No records entered yet.");
   const authCard = dbReady ? (currentUser
     ? `<article class="role-card admin-tools"><h3>Signed In</h3><p class="meta">${escapeHtml(currentUser.email)}</p><p class="meta">Role: ${escapeHtml(currentUserRole)}</p><p class="meta">Records save to the shared Supabase database.</p><button class="ghost-btn" id="signOutBtn">Sign Out</button></article>`
-    : `<article class="role-card admin-tools"><h3>Database Sign In</h3><p class="meta">Sign in before adding, editing, importing, or deleting records.</p><label>Email<input id="authEmail" type="email" autocomplete="email"></label><label>Password<input id="authPassword" type="password" autocomplete="current-password"></label><button class="primary-btn" id="signInBtn">Sign In</button><button class="ghost-btn" id="signUpBtn">Create User</button></article>`)
+    : `<article class="role-card admin-tools"><h3>Database Sign In Required</h3><p class="meta">Use the account login screen before dashboard access is granted.</p></article>`)
     : `<article class="role-card admin-tools"><h3>Database Setup Needed</h3><p class="meta">Add SUPABASE_URL and SUPABASE_ANON_KEY in Vercel to enable the shared database.</p></article>`;
-  document.getElementById("adminGrid").innerHTML = `${authCard}${roleCards}<article class="role-card admin-tools"><h3>Admin Tools</h3><p class="meta">Clear All Local Records removes old browser prototype data only. Shared database records remain until an authorized user deletes them.</p><p class="meta build-marker">${buildMarker}</p><button class="primary-btn" id="addRoleRecord">Add Role</button><button class="ghost-btn danger-btn" id="clearLocalRecords">Clear All Local Records</button></article>`;
+  document.getElementById("adminGrid").innerHTML = `${authCard}${roleCards}<article class="role-card admin-tools"><h3>Admin Tools</h3><p class="meta">Clear All Local Records removes old browser prototype data only. Shared database records remain until an authorized admin deletes them.</p><p class="meta build-marker">${buildMarker}</p>${canManageUsers() ? '<button class="primary-btn" id="addRoleRecord">Add Role</button>' : ""}<button class="ghost-btn danger-btn" id="clearLocalRecords">Clear All Local Records</button></article>`;
   document.getElementById("clearLocalRecords").addEventListener("click", clearLocalRecords);
-  document.getElementById("addRoleRecord").addEventListener("click", () => openRoleEditor());
-  document.getElementById("signInBtn")?.addEventListener("click", signIn);
-  document.getElementById("signUpBtn")?.addEventListener("click", signUp);
+  document.getElementById("addRoleRecord")?.addEventListener("click", () => openRoleEditor());
   document.getElementById("signOutBtn")?.addEventListener("click", signOut);
 }
 
 function recordRoleActions(role) {
+  if (!canManageUsers()) return "";
   return `<div class="record-actions"><button class="ghost-btn" data-edit-role="${role.id}">Edit</button><button class="ghost-btn danger-btn" data-delete-role="${role.id}">Delete</button></div>`;
 }
 
@@ -673,6 +801,19 @@ function renderAll() {
   renderNotifications();
   renderAudit();
   renderAdmin();
+  updatePermissionControls();
+}
+
+function updatePermissionControls() {
+  const writable = canWrite();
+  const exportAllowed = canExport();
+  ["addWorker", "addIncident", "addRestricted", "addCorrective"].forEach((id) => {
+    document.getElementById(id)?.classList.toggle("permission-hidden", !writable);
+  });
+  document.querySelector('[data-page-link="intake"]')?.classList.toggle("permission-hidden", !writable);
+  document.getElementById("reportCsvImport")?.classList.toggle("permission-hidden", !writable);
+  document.getElementById("exportBtn")?.classList.toggle("permission-hidden", !exportAllowed);
+  document.getElementById("reportCsvExport")?.classList.toggle("permission-hidden", !exportAllowed);
 }
 
 function blankRecord(overrides = {}) {
@@ -709,7 +850,9 @@ function blankRecord(overrides = {}) {
     correctiveStatus: overrides.correctiveStatus || "Open",
     reDispatchConcern: overrides.reDispatchConcern || "Monitor",
     managementReview: overrides.managementReview || "Active",
-    submitted: true
+    submitted: true,
+    createdBy: overrides.createdBy || "",
+    createdByEmail: overrides.createdByEmail || ""
   };
 }
 
@@ -722,6 +865,8 @@ function selectField(name, label, value, options) {
 }
 
 function openRecordEditor(record = null, context = "record") {
+  if (!canWrite()) return alert("Your account does not have permission to add or edit records.");
+  if (record?.id && !canEditRecord(record)) return alert("You can edit only records you created.");
   editing = { type: "record", id: record?.id || null };
   const current = blankRecord(record || {});
   const host = document.getElementById("editorHost");
@@ -774,9 +919,19 @@ async function saveRecordEditor(event) {
   form.dataset.saving = "true";
   form.querySelector('button[type="submit"]').disabled = true;
   const data = Object.fromEntries(new FormData(form).entries());
+  const existingId = editing.id || data.id;
+  const existingIndex = state.records.findIndex((item) => item.id === existingId || item.id === data.id);
+  const existingRecord = existingIndex >= 0 ? state.records[existingIndex] : null;
+  if (existingRecord && !canEditRecord(existingRecord)) {
+    alert("You can edit only records you created.");
+    form.dataset.saving = "false";
+    form.querySelector('button[type="submit"]').disabled = false;
+    return;
+  }
   const record = blankRecord(data);
   record.updated = today();
-  const existingId = editing.id || record.id;
+  record.createdBy = existingRecord?.createdBy || currentUser?.id || "";
+  record.createdByEmail = existingRecord?.createdByEmail || currentUser?.email || "";
   try {
     const saved = await saveAccessRecord(record);
     if (!saved) return;
@@ -787,7 +942,6 @@ async function saveRecordEditor(event) {
     form.dataset.saving = "false";
     form.querySelector('button[type="submit"]').disabled = false;
   }
-  const existingIndex = state.records.findIndex((item) => item.id === existingId || item.id === record.id);
   if (existingIndex >= 0) {
     state.records[existingIndex] = record;
   } else {
@@ -803,6 +957,8 @@ function closeEditor() {
 }
 
 function openReportEditor(record = null) {
+  if (!canWrite()) return alert("Your account does not have permission to add or edit report records.");
+  if (record?.id && !canEditRecord(record)) return alert("You can edit only report records you created.");
   const current = record || { id: newId("RPT"), title: "", date: today(), owner: "", notes: "" };
   const host = document.getElementById("editorHost");
   host.innerHTML = `<form class="panel editor-panel" id="reportEditor">
@@ -826,6 +982,16 @@ async function saveReportEditor(event) {
   form.querySelector('button[type="submit"]').disabled = true;
   const report = Object.fromEntries(new FormData(form).entries());
   const existingId = editing.id || report.id;
+  const existingIndex = state.reportRecords.findIndex((item) => item.id === existingId || item.id === report.id);
+  const existingReport = existingIndex >= 0 ? state.reportRecords[existingIndex] : null;
+  if (existingReport && !canEditRecord(existingReport)) {
+    alert("You can edit only report records you created.");
+    form.dataset.saving = "false";
+    form.querySelector('button[type="submit"]').disabled = false;
+    return;
+  }
+  report.createdBy = existingReport?.createdBy || currentUser?.id || "";
+  report.createdByEmail = existingReport?.createdByEmail || currentUser?.email || "";
   try {
     const saved = await saveReportRecord(report);
     if (!saved) return;
@@ -836,7 +1002,6 @@ async function saveReportEditor(event) {
     form.dataset.saving = "false";
     form.querySelector('button[type="submit"]').disabled = false;
   }
-  const existingIndex = state.reportRecords.findIndex((item) => item.id === existingId || item.id === report.id);
   if (existingIndex >= 0) {
     state.reportRecords[existingIndex] = report;
   } else {
@@ -847,6 +1012,7 @@ async function saveReportEditor(event) {
 }
 
 function openRoleEditor(role = null) {
+  if (!canManageUsers()) return alert("Only admins can manage roles.");
   const current = role || { id: newId("ROLE"), role: "", permissions: "", audit: "Yes" };
   const host = document.getElementById("editorHost");
   host.innerHTML = `<form class="panel editor-panel" id="roleEditor">
@@ -891,6 +1057,8 @@ async function saveRoleEditor(event) {
 }
 
 async function deleteRecord(id) {
+  const record = state.records.find((item) => item.id === id);
+  if (!canDeleteRecord(record)) return alert("You can delete only records you created.");
   if (!window.confirm("Delete this record?")) return;
   try {
     const deleted = await deleteRemoteRecord("access_records", id);
@@ -903,6 +1071,8 @@ async function deleteRecord(id) {
 }
 
 async function deleteReport(id) {
+  const record = state.reportRecords.find((item) => item.id === id);
+  if (!canDeleteRecord(record)) return alert("You can delete only report records you created.");
   if (!window.confirm("Delete this report record?")) return;
   try {
     const deleted = await deleteRemoteRecord("report_records", id);
@@ -915,6 +1085,7 @@ async function deleteReport(id) {
 }
 
 async function deleteRole(id) {
+  if (!canManageUsers()) return alert("Only admins can delete roles.");
   if (!window.confirm("Delete this role?")) return;
   try {
     const deleted = await deleteRemoteRecord("app_roles", id);
@@ -959,6 +1130,7 @@ function submittedRecordFromForm(form) {
 
 async function submitForReview(event) {
   event.preventDefault();
+  if (!canWrite()) return alert("Your account does not have permission to submit records.");
   const record = submittedRecordFromForm(event.currentTarget);
   try {
     const saved = await saveAccessRecord(record);
@@ -991,6 +1163,7 @@ function switchPage(pageId) {
 }
 
 function exportCsv() {
+  if (!canExport()) return alert("Only admins can export records.");
   const headers = ["Record ID", "Worker / Record Name", "Contractor", "Source", "Project / Site", "Utility Customer", "Job Classification", "Event Date", "Incident Type", "Severity", "SIF Potential", "Investigation Status", "Evidence Status", "Access Status", "Banned From Site", "Restriction Scope", "Corrective Action", "Corrective Action Owner", "Review Date", "Final Disposition", "Notes", "Last Updated"];
   const rows = activeRecords().map((r) => [r.id, r.name, r.contractor, r.source, r.project, r.utility, r.jobClass, r.date, r.type, r.severity, r.sif, r.investigation, r.evidence, r.access, r.banned, r.scope, r.action, r.authority, r.reinstatement, r.disposition, r.notes, r.updated]);
   const csv = [headers, ...rows].map((row) => row.map((cell) => `"${String(cell || "").replaceAll('"', '""')}"`).join(",")).join("\n");
@@ -1037,6 +1210,7 @@ function parseCsv(text) {
 }
 
 function importCsvFile(file) {
+  if (!canWrite()) return alert("Your account does not have permission to import records.");
   const reader = new FileReader();
   reader.onload = async () => {
     const rows = parseCsv(String(reader.result || ""));
@@ -1149,10 +1323,10 @@ async function init() {
   window.addEventListener("resize", renderCharts);
 }
 
-function bootstrapAccessGate() {
+async function bootstrapAccessGate() {
   document.getElementById("accessGateForm").addEventListener("submit", verifyAccessCode);
   if (isAccessUnlocked()) {
-    unlockApp();
+    await evaluateAccess();
   } else {
     showAccessGate();
   }

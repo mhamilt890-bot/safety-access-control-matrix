@@ -6,7 +6,7 @@
     <title>Safety Access Control Matrix</title>
     <link rel="stylesheet" href="styles.css" />
   </head>
-  <body class="access-locked">
+  <body class="access-locked auth-locked">
     <section class="access-gate" id="accessGate" aria-labelledby="accessGateTitle">
       <form class="access-card" id="accessGateForm">
         <div class="brand access-brand">
@@ -22,6 +22,25 @@
         <button class="primary-btn" type="submit">Unlock Dashboard</button>
         <div class="access-error" id="accessGateMessage" role="alert"></div>
       </form>
+    </section>
+    <section class="auth-gate" id="authGate" aria-labelledby="authGateTitle" aria-hidden="true">
+      <div class="access-card" id="authGateContent">
+        <div class="brand access-brand">
+          <div class="brand-mark">SA</div>
+          <div>
+            <strong>Safety Access</strong>
+            <span>Control Matrix</span>
+          </div>
+        </div>
+        <h1 id="authGateTitle">Account Login Required</h1>
+        <p>Sign in with an approved company account before dashboard data is visible.</p>
+        <form id="authGateForm">
+          <label>Email<input id="authGateEmail" type="email" autocomplete="email" required /></label>
+          <label>Password<input id="authGatePassword" type="password" autocomplete="current-password" required /></label>
+          <button class="primary-btn" type="submit">Sign In</button>
+        </form>
+        <div class="access-error" id="authGateMessage" role="alert"></div>
+      </div>
     </section>
     <div class="app-shell" id="appShell" aria-hidden="true">
       <aside class="sidebar">
