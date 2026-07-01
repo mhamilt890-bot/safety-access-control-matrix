@@ -66,15 +66,15 @@
             </article>
             <article class="panel chart-panel">
               <div class="panel-heading">
-                <h2>Repeat Event Trend</h2>
-                <span>Substantiated cases</span>
+                <h2>Severity Breakdown</h2>
+                <span>Entered records</span>
               </div>
               <canvas id="repeatChart" height="250"></canvas>
             </article>
             <article class="panel chart-panel">
               <div class="panel-heading">
                 <h2>Contractor Comparison</h2>
-                <span>SIF-potential events</span>
+                <span>Entered records</span>
               </div>
               <canvas id="contractorChart" height="250"></canvas>
             </article>
@@ -112,14 +112,14 @@
               <option value="">All banned statuses</option>
             </select>
             <button class="ghost-btn" id="clearFilters">Clear Filters</button>
-            <button class="primary-btn" id="addMockRecord">Add Mock Record</button>
+            <button class="primary-btn" id="addWorker">Add Worker</button>
           </div>
           <div class="table-shell">
             <table>
               <thead>
                 <tr>
-                  <th>Worker ID / Badge ID</th>
-                  <th>Worker Name</th>
+                  <th>Record ID / Badge ID</th>
+                  <th>Record / Worker Name</th>
                   <th>Union Local / Dispatch Source</th>
                   <th>Current Contractor</th>
                   <th>Prior Contractor</th>
@@ -142,6 +142,7 @@
                   <th>Final Disposition</th>
                   <th>Notes</th>
                   <th>Last Updated</th>
+                  <th>Actions</th>
                 </tr>
               </thead>
               <tbody id="matrixBody"></tbody>
@@ -151,27 +152,30 @@
 
         <section id="intake" class="page">
           <div class="form-layout">
-            <form class="panel intake-form">
+            <form class="panel intake-form" id="intakeForm">
               <div class="panel-heading">
                 <h2>Serious Event Intake</h2>
                 <span>Temporary restrictions require documented review</span>
               </div>
               <div class="form-grid">
-                <label>Worker Name<input value="New Worker" /></label>
-                <label>Badge ID<input value="BADGE-1288" /></label>
-                <label>Contractor<select><option>Ward Electric</option><option>PAR</option><option>Q3 Contracting</option><option>Sturgeon Electric</option></select></label>
-                <label>Event Date<input type="date" value="2026-06-29" /></label>
-                <label>Event Category<select id="eventCategorySelect"></select></label>
-                <label>Severity<select><option>Critical</option><option>High</option><option>Moderate</option><option>Low</option></select></label>
-                <label>SIF Potential<select><option>Critical</option><option>High</option><option>Moderate</option><option>Low</option></select></label>
-                <label>Immediate Access Action<select><option>Temporary Pending Review</option><option>No Restriction Pending Facts</option><option>Site-Specific Restriction</option></select></label>
+                <label>Worker Name<input name="workerName" placeholder="Worker name" /></label>
+                <label>Badge ID<input name="badgeId" placeholder="Badge or employee ID" /></label>
+                <label>Contractor<input name="contractor" placeholder="Contractor or company" /></label>
+                <label>Dispatch Source<input name="source" placeholder="Union local, contractor source, or reporting source" /></label>
+                <label>Project / Site<input name="project" placeholder="Project, site, or work location" /></label>
+                <label>Event Date<input name="eventDate" type="date" /></label>
+                <label>Event Category<select name="eventCategory" id="eventCategorySelect"></select></label>
+                <label>Severity<select name="severity"><option>Critical</option><option>High</option><option>Moderate</option><option>Low</option></select></label>
+                <label>SIF Potential<select name="sif"><option>Critical</option><option>High</option><option>Moderate</option><option>Low</option></select></label>
+                <label>Immediate Access Action<select name="accessAction"><option>Temporary Pending Review</option><option>No Restriction Pending Facts</option><option>Site-Specific Restriction</option><option>Suspended Pending Review</option><option>Banned From Site</option></select></label>
               </div>
-              <label class="wide-label">Event Summary<textarea>Initial report logged. Facts pending contractor response, witness statements, and safety documentation review.</textarea></label>
+              <label class="wide-label">Event Summary<textarea name="eventSummary" placeholder="Summarize the reported event, immediate action, known facts, and pending review items."></textarea></label>
               <div class="upload-zone">
                 <strong>Evidence Upload Placeholder</strong>
                 <span>Photos, statements, switching logs, LOTO forms, training records, and supervisor notes</span>
               </div>
-              <button type="button" class="primary-btn">Submit for Review</button>
+              <button type="submit" class="primary-btn" id="submitForReview">Submit for Review</button>
+              <div id="submissionMessage" class="form-message" role="status" aria-live="polite"></div>
             </form>
             <aside class="panel workflow-card">
               <h2>Intake Guardrails</h2>
@@ -251,8 +255,10 @@
               </div>
               <div class="export-actions">
                 <button class="ghost-btn" id="reportCsvExport">CSV Export</button>
+                <button class="ghost-btn" id="reportCsvImport">CSV Import</button>
                 <button class="ghost-btn" id="reportPdfExport">PDF / Print Report</button>
               </div>
+              <input id="csvImportInput" type="file" accept=".csv,text/csv" hidden />
               <p class="meta">PDF export uses the browser print dialog. Choose "Save as PDF" to create a management report.</p>
             </article>
           </div>
@@ -273,6 +279,8 @@
         </section>
       </main>
     </div>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="config.js"></script>
     <script src="app.js"></script>
   </body>
 </html>

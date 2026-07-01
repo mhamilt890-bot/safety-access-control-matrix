@@ -1,3 +1,3 @@
-2026-06-30 07:42:01 -06:00
+2026-06-30 17:20:12 -06:00
 This is the final clean upload package.
-Supabase multi-user production prototype package.
+Supabase schema repair package.

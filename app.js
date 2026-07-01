@@ -16,7 +16,7 @@ const eventCategories = [
 
 const storageKey = "safetyAccessControlMatrixLocalData";
 const oldStorageKeys = ["safetyAccessProductionRecords", "safetyAccessSubmittedRecords", storageKey];
-const buildMarker = "Supabase multi-user build: 2026-06-30 07:40:50 -06:00";
+const buildMarker = "Supabase schema repair build: 2026-06-30 08:05:00 -06:00";
 const config = window.SAFETY_ACCESS_CONFIG || {};
 
 const blankState = {
@@ -111,12 +111,14 @@ function recordToRow(record) {
     corrective_status: record.correctiveStatus,
     redispatch_concern: record.reDispatchConcern,
     management_review: record.managementReview,
-    created_by: currentUser?.id || null
+    created_by: currentUser?.id || null,
+    data: record
   };
 }
 
 function rowToRecord(row) {
   return blankRecord({
+    ...(row.data || {}),
     id: row.id,
     name: row.name,
     source: row.source,
@@ -153,19 +155,19 @@ function rowToRecord(row) {
 }
 
 function reportToRow(report) {
-  return { id: report.id, title: report.title, report_date: report.date || null, owner: report.owner, notes: report.notes, created_by: currentUser?.id || null };
+  return { id: report.id, title: report.title, report_date: report.date || null, owner: report.owner, notes: report.notes, created_by: currentUser?.id || null, data: report };
 }
 
 function rowToReport(row) {
-  return { id: row.id, title: row.title || "", date: row.report_date || "", owner: row.owner || "", notes: row.notes || "" };
+  return { ...(row.data || {}), id: row.id, title: row.title || row.data?.title || "", date: row.report_date || row.data?.date || "", owner: row.owner || row.data?.owner || "", notes: row.notes || row.data?.notes || "" };
 }
 
 function roleToRow(role) {
-  return { id: role.id, role: role.role, permissions: role.permissions, audit: role.audit, created_by: currentUser?.id || null };
+  return { id: role.id, role: role.role, permissions: role.permissions, audit: role.audit, created_by: currentUser?.id || null, data: role };
 }
 
 function rowToRole(row) {
-  return { id: row.id, role: row.role || "", permissions: row.permissions || "", audit: row.audit || "Yes" };
+  return { ...(row.data || {}), id: row.id, role: row.role || row.data?.role || "", permissions: row.permissions || row.data?.permissions || "", audit: row.audit || row.data?.audit || "Yes" };
 }
 
 async function signIn() {
@@ -214,7 +216,8 @@ async function syncDerivedRecords(record) {
     sif: record.sif,
     investigation: record.investigation,
     notes: record.notes,
-    created_by: currentUser?.id || null
+    created_by: currentUser?.id || null,
+    data: record
   };
   const { error: incidentError } = await db.from("incidents").upsert(incidentRow);
   if (incidentError) throw incidentError;
@@ -230,7 +233,8 @@ async function syncDerivedRecords(record) {
       restriction_scope: record.scope,
       disposition: record.disposition,
       review_date: record.reinstatement || null,
-      created_by: currentUser?.id || null
+      created_by: currentUser?.id || null,
+      data: record
     };
     const { error } = await db.from("restricted_banned_records").upsert(restrictedRow);
     if (error) throw error;
@@ -248,7 +252,8 @@ async function syncDerivedRecords(record) {
       status: record.correctiveStatus,
       review_date: record.reinstatement || null,
       evidence: record.evidence,
-      created_by: currentUser?.id || null
+      created_by: currentUser?.id || null,
+      data: record
     };
     const { error } = await db.from("corrective_actions").upsert(actionRow);
     if (error) throw error;

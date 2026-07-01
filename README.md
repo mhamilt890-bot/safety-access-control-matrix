@@ -38,7 +38,7 @@ Clear All Local Records only removes old browser prototype storage keys from the
 
 1. Create a Supabase project.
 2. Open the Supabase SQL Editor.
-3. Run `supabase_schema.sql`.
+3. For a new project, run `supabase_schema.sql`. For the current live project or any partially created Supabase schema, run `supabase_schema_repair.sql`.
 4. In Supabase Authentication, create company users or allow email signup.
 5. In Vercel, add these environment variables:
    - `SUPABASE_URL`
@@ -55,6 +55,10 @@ Clear All Local Records only removes old browser prototype storage keys from the
 - `profiles`: authenticated user profile records.
 - `app_roles`: editable app role/permission records.
 - `audit_log`: append-only create/edit/delete activity log.
+
+## Live Schema Repair
+
+If Supabase reports a missing column such as `incidents.access_record_id`, run `supabase_schema_repair.sql` one time in the Supabase SQL Editor. It repairs existing tables with `alter table ... add column if not exists`, keeps text IDs for app-generated record IDs, adds `data jsonb` for flexible form fields, and preserves existing records where possible.
 
 ## Version Marker
 

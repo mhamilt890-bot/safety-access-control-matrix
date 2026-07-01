@@ -466,6 +466,74 @@ textarea {
   line-height: 1.5;
 }
 
+.form-message {
+  min-height: 20px;
+  margin-top: 10px;
+  color: #15803d;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.empty-state {
+  padding: 18px;
+  border: 1px dashed #cbd5e1;
+  border-radius: 8px;
+  color: var(--muted);
+  background: #f8fafc;
+  font-size: 14px;
+}
+
+.empty-state.compact {
+  padding: 10px;
+  font-size: 13px;
+}
+
+.table-empty {
+  padding: 24px;
+  color: var(--muted);
+  text-align: center;
+}
+
+.danger-btn {
+  border-color: #fecaca;
+  color: #b91c1c;
+}
+
+.build-marker {
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: #eef6ff;
+  color: #1d4ed8;
+  font-weight: 700;
+}
+
+.section-actions,
+.record-actions,
+.editor-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.section-actions {
+  margin: 0 0 14px;
+}
+
+.record-actions {
+  justify-content: flex-end;
+}
+
+.record-actions .ghost-btn,
+.editor-actions .ghost-btn,
+.editor-actions .primary-btn {
+  padding: 8px 10px;
+}
+
+.editor-panel {
+  margin-bottom: 16px;
+}
+
 .review-board {
   display: grid;
   grid-template-columns: repeat(3, minmax(210px, 1fr));

@@ -43,7 +43,8 @@ create table if not exists access_records (
   management_review text,
   created_by uuid references auth.users(id),
   created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
+  updated_at timestamptz not null default now(),
+  data jsonb not null default '{}'::jsonb
 );
 
 create table if not exists incidents (
@@ -57,7 +58,8 @@ create table if not exists incidents (
   notes text,
   created_by uuid references auth.users(id),
   created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
+  updated_at timestamptz not null default now(),
+  data jsonb not null default '{}'::jsonb
 );
 
 create table if not exists restricted_banned_records (
@@ -72,7 +74,8 @@ create table if not exists restricted_banned_records (
   review_date date,
   created_by uuid references auth.users(id),
   created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
+  updated_at timestamptz not null default now(),
+  data jsonb not null default '{}'::jsonb
 );
 
 create table if not exists corrective_actions (
@@ -85,7 +88,8 @@ create table if not exists corrective_actions (
   evidence text,
   created_by uuid references auth.users(id),
   created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
+  updated_at timestamptz not null default now(),
+  data jsonb not null default '{}'::jsonb
 );
 
 create table if not exists report_records (
@@ -96,7 +100,8 @@ create table if not exists report_records (
   notes text,
   created_by uuid references auth.users(id),
   created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
+  updated_at timestamptz not null default now(),
+  data jsonb not null default '{}'::jsonb
 );
 
 create table if not exists app_roles (
@@ -106,7 +111,8 @@ create table if not exists app_roles (
   audit text not null default 'Yes',
   created_by uuid references auth.users(id),
   created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
+  updated_at timestamptz not null default now(),
+  data jsonb not null default '{}'::jsonb
 );
 
 create table if not exists audit_log (

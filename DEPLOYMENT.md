@@ -50,6 +50,7 @@ Upload these project files and folders:
 - `README.md`
 - `config.js`
 - `supabase_schema.sql`
+- `supabase_schema_repair.sql`
 
 Do not upload generated folders unless your host requires them. The `dist` folder is created by `npm run build`.
 
@@ -58,7 +59,7 @@ Do not upload generated folders unless your host requires them. The `dist` folde
 1. Create a GitHub repository.
 2. Upload the files listed above.
 3. Create a Supabase project.
-4. Run `supabase_schema.sql` in the Supabase SQL Editor.
+4. Run `supabase_schema_repair.sql` in the Supabase SQL Editor for the current live project. For a brand-new empty Supabase project, `supabase_schema.sql` also works.
 5. In Vercel, add these environment variables:
    - `SUPABASE_URL`
    - `SUPABASE_ANON_KEY`
