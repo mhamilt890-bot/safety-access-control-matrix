@@ -43,6 +43,7 @@ Clear All Local Records only removes old browser prototype storage keys from the
 5. In Vercel, add these environment variables:
    - `SUPABASE_URL`
    - `SUPABASE_ANON_KEY`
+   - `APP_ACCESS_CODE`
 6. Deploy through Vercel with output directory `dist`.
 
 ## Database Tables
@@ -62,4 +63,8 @@ If Supabase reports a missing column such as `incidents.access_record_id`, run `
 
 ## Version Marker
 
-Open Settings / Roles and confirm the visible marker starts with `Supabase multi-user build:`.
+Open Settings / Roles and confirm the visible marker starts with `Passcode access gate build:`.
+
+## Access Gate
+
+The live dashboard is hidden behind a simple passcode screen. Set the passcode in Vercel as `APP_ACCESS_CODE`. The passcode is checked by the Vercel serverless route `/api/verify-access-code`; it is not written into `config.js`.

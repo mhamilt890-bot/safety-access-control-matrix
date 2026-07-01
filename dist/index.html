@@ -6,8 +6,24 @@
     <title>Safety Access Control Matrix</title>
     <link rel="stylesheet" href="styles.css" />
   </head>
-  <body>
-    <div class="app-shell">
+  <body class="access-locked">
+    <section class="access-gate" id="accessGate" aria-labelledby="accessGateTitle">
+      <form class="access-card" id="accessGateForm">
+        <div class="brand access-brand">
+          <div class="brand-mark">SA</div>
+          <div>
+            <strong>Safety Access</strong>
+            <span>Control Matrix</span>
+          </div>
+        </div>
+        <h1 id="accessGateTitle">Secure Access Required</h1>
+        <p>Enter the company access code to open the safety dashboard.</p>
+        <label>Access Code<input id="appAccessCodeInput" type="password" autocomplete="current-password" required /></label>
+        <button class="primary-btn" type="submit">Unlock Dashboard</button>
+        <div class="access-error" id="accessGateMessage" role="alert"></div>
+      </form>
+    </section>
+    <div class="app-shell" id="appShell" aria-hidden="true">
       <aside class="sidebar">
         <div class="brand">
           <div class="brand-mark">SA</div>
@@ -43,6 +59,7 @@
               <input id="globalSearch" type="search" placeholder="Worker, contractor, event..." />
             </label>
             <button class="ghost-btn" id="exportBtn">Export</button>
+            <button class="ghost-btn" id="appLogoutBtn">Logout</button>
             <button class="primary-btn" data-page-link="intake">New Event</button>
           </div>
         </header>

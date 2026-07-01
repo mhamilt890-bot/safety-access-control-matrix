@@ -16,7 +16,8 @@ const eventCategories = [
 
 const storageKey = "safetyAccessControlMatrixLocalData";
 const oldStorageKeys = ["safetyAccessProductionRecords", "safetyAccessSubmittedRecords", storageKey];
-const buildMarker = "Supabase schema repair build: 2026-06-30 08:05:00 -06:00";
+const buildMarker = "Passcode access gate build: 2026-06-30 17:35:00 -06:00";
+const accessSessionKey = "safetyAccessGateUnlocked";
 const config = window.SAFETY_ACCESS_CONFIG || {};
 
 const blankState = {
@@ -31,6 +32,71 @@ let db = null;
 let dbReady = false;
 let currentUser = null;
 let currentUserRole = "Safety Reviewer";
+let appStarted = false;
+
+function isAccessUnlocked() {
+  return sessionStorage.getItem(accessSessionKey) === "true";
+}
+
+function setAccessUnlocked(value) {
+  if (value) sessionStorage.setItem(accessSessionKey, "true");
+  else sessionStorage.removeItem(accessSessionKey);
+}
+
+function showAccessGate(message = "") {
+  document.body.classList.add("access-locked");
+  document.getElementById("appShell")?.setAttribute("aria-hidden", "true");
+  const gate = document.getElementById("accessGate");
+  gate?.removeAttribute("aria-hidden");
+  const messageElement = document.getElementById("accessGateMessage");
+  if (messageElement) messageElement.textContent = message;
+}
+
+async function unlockApp() {
+  document.body.classList.remove("access-locked");
+  document.getElementById("appShell")?.setAttribute("aria-hidden", "false");
+  document.getElementById("accessGate")?.setAttribute("aria-hidden", "true");
+  if (!appStarted) {
+    appStarted = true;
+    await init();
+  }
+}
+
+async function verifyAccessCode(event) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const input = document.getElementById("appAccessCodeInput");
+  const message = document.getElementById("accessGateMessage");
+  const button = form.querySelector('button[type="submit"]');
+  const code = input.value;
+  message.textContent = "";
+  button.disabled = true;
+
+  try {
+    const result = await fetch("/api/verify-access-code", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ code })
+    });
+    const payload = await result.json().catch(() => ({}));
+    if (!result.ok || !payload.ok) {
+      message.textContent = payload.message || "Incorrect access code.";
+      return;
+    }
+    setAccessUnlocked(true);
+    input.value = "";
+    await unlockApp();
+  } catch (_error) {
+    message.textContent = "Unable to verify access code. Check the deployment setup.";
+  } finally {
+    button.disabled = false;
+  }
+}
+
+function logoutAccessGate() {
+  setAccessUnlocked(false);
+  showAccessGate("Logged out.");
+}
 
 async function initDatabase() {
   if (!config.supabaseUrl || !config.supabaseAnonKey || !window.supabase) return;
@@ -1040,6 +1106,7 @@ function handleDocumentClick(event) {
 }
 
 async function init() {
+  if (document.getElementById("editorHost")) return;
   document.querySelector(".workspace").insertAdjacentHTML("afterbegin", '<div id="editorHost"></div>');
   addPageButtons();
   await initDatabase();
@@ -1076,9 +1143,19 @@ async function init() {
   document.getElementById("reportPdfExport").addEventListener("click", () => window.print());
   document.getElementById("printReport").addEventListener("click", () => window.print());
   document.getElementById("addWorker").addEventListener("click", () => openRecordEditor(blankRecord({ source: "Manual Worker Matrix Entry" }), "Worker"));
+  document.getElementById("appLogoutBtn").addEventListener("click", logoutAccessGate);
   document.getElementById("intakeForm").addEventListener("submit", submitForReview);
   document.addEventListener("click", handleDocumentClick);
   window.addEventListener("resize", renderCharts);
 }
 
-init();
+function bootstrapAccessGate() {
+  document.getElementById("accessGateForm").addEventListener("submit", verifyAccessCode);
+  if (isAccessUnlocked()) {
+    unlockApp();
+  } else {
+    showAccessGate();
+  }
+}
+
+bootstrapAccessGate();
