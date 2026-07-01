@@ -255,12 +255,19 @@ async function loadCurrentUserRole() {
 
   const authEmail = String(currentUser.email || "").trim().toLowerCase();
   let profile = null;
-  const byId = await db.from("profiles").select("id, email, role, approved").eq("id", currentUser.id).maybeSingle();
-  if (!byId.error && byId.data) {
-    profile = byId.data;
-  } else if (authEmail) {
-    const byEmail = await db.from("profiles").select("id, email, role, approved").ilike("email", authEmail).maybeSingle();
-    if (!byEmail.error && byEmail.data) profile = byEmail.data;
+  const rpcResult = await db.rpc("get_my_profile");
+  if (!rpcResult.error && Array.isArray(rpcResult.data) && rpcResult.data[0]) {
+    profile = rpcResult.data[0];
+  }
+
+  if (!profile) {
+    const byId = await db.from("profiles").select("id, email, role, approved").eq("id", currentUser.id).maybeSingle();
+    if (!byId.error && byId.data) {
+      profile = byId.data;
+    } else if (authEmail) {
+      const byEmail = await db.from("profiles").select("id, email, role, approved").ilike("email", authEmail).maybeSingle();
+      if (!byEmail.error && byEmail.data) profile = byEmail.data;
+    }
   }
 
   profileDebug = {

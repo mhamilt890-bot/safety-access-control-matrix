@@ -172,7 +172,10 @@ returns text as $$
     else ''
   end
   from public.profiles
-  where id = auth.uid()
+  where (
+      id::text = auth.uid()::text
+      or lower(coalesce(email, '')) = lower(coalesce(auth.jwt() ->> 'email', ''))
+    )
     and approved = true;
 $$ language sql stable security definer set search_path = public;
 
@@ -191,12 +194,30 @@ returns boolean as $$
   select exists (
     select 1
     from public.profiles
-    where id = auth.uid()
+    where (
+        id::text = auth.uid()::text
+        or lower(coalesce(email, '')) = lower(coalesce(auth.jwt() ->> 'email', ''))
+      )
       and approved = true
       and lower(coalesce(email, '')) = 'mhamilt890@gmail.com'
       and lower(coalesce(role, '')) = 'admin'
   );
 $$ language sql stable security definer set search_path = public;
+
+create or replace function public.get_my_profile()
+returns table (
+  id uuid,
+  email text,
+  role text,
+  approved boolean
+) as $$
+  select p.id, p.email, p.role, p.approved
+  from public.profiles p
+  where p.id = auth.uid()
+  limit 1;
+$$ language sql stable security definer set search_path = public;
+
+grant execute on function public.get_my_profile() to authenticated;
 
 create or replace function app_owns_record(record_created_by uuid, record_created_by_email text)
 returns boolean as $$
@@ -210,8 +231,18 @@ returns boolean as $$
     or lower(coalesce(auth.jwt() ->> 'email', '')) = lower(coalesce(record_created_by_email, ''));
 $$ language sql stable security definer set search_path = public;
 
-create policy "approved read profiles" on profiles for select to authenticated using (auth.uid() = id or app_is_admin());
-create policy "admin manage profiles" on profiles for all to authenticated using (app_is_admin()) with check (app_is_admin());
+create policy "signed in read own profile or admin profiles" on profiles
+for select to authenticated
+using (
+  id::text = auth.uid()::text
+  or lower(coalesce(email, '')) = lower(coalesce(auth.jwt() ->> 'email', ''))
+  or app_is_admin()
+);
+
+create policy "admin update profiles" on profiles
+for update to authenticated
+using (app_is_admin())
+with check (app_is_admin());
 
 create policy "approved read access records" on access_records for select to authenticated using (app_can_view());
 create policy "approved insert shared access records" on access_records for insert to authenticated with check (app_can_write() and (app_is_admin() or app_owns_record(created_by, created_by_email)));

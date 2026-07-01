@@ -81,6 +81,8 @@ Users with no approved role see `Account pending approval.`
 
 The account login screen includes Create Account. New accounts are created in Supabase Auth and remain pending until an administrator approves the matching `public.profiles` row.
 
+Profile loading uses the `get_my_profile()` Supabase RPC so the app can read the signed-in user's own profile even when direct table reads are restricted by RLS.
+
 ## User Approvals
 
 After `mhamilt890@gmail.com` signs in with approved `admin` role, the sidebar shows `Admin / User Approvals`. That screen lists pending users first and allows the admin to approve users, disable users, and change roles to `viewer`, `reviewer`, or `admin`. Non-admin users cannot see or open the approvals screen.
