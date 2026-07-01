@@ -200,6 +200,7 @@ function normalizeRole(role) {
   if (["admin", "system admin", "safety admin"].includes(value)) return "admin";
   if (["reviewer", "safety reviewer", "safety manager", "editor"].includes(value)) return "reviewer";
   if (["viewer", "read only", "read-only"].includes(value)) return "viewer";
+  if (["user", "approved"].includes(value)) return "approved";
   return "";
 }
 
@@ -281,7 +282,7 @@ async function loadCurrentUserRole() {
   };
 
   const approved = profile?.approved === true;
-  if (!approved) return;
+  if (!approved) return profile;
   if (profile?.role) {
     currentUserRole = profile.role;
     normalizedUserRole = normalizeRole(currentUserRole) || "approved";
@@ -289,6 +290,7 @@ async function loadCurrentUserRole() {
     currentUserRole = "approved";
     normalizedUserRole = "approved";
   }
+  return profile;
 }
 
 async function loadRemoteState() {
@@ -426,18 +428,45 @@ async function signIn(event) {
   if (!dbReady || !db) return alert("Supabase login is not configured.");
   const email = (document.getElementById("authGateEmail")?.value || document.getElementById("authEmail")?.value || "").trim();
   const password = document.getElementById("authGatePassword")?.value || document.getElementById("authPassword")?.value;
+  const message = document.getElementById("authGateMessage");
+  const button = event?.currentTarget?.querySelector?.('button[type="submit"]');
   if (!email || !password) return alert("Enter an email and password.");
-  const { error } = await db.auth.signInWithPassword({ email, password });
-  if (error) alert(error.message);
-  else {
+
+  if (message) message.textContent = "";
+  if (button) button.disabled = true;
+
+  try {
+    const { error } = await db.auth.signInWithPassword({ email, password });
+    if (error) {
+      const text = String(error.message || "").toLowerCase().includes("invalid login credentials")
+        ? "Invalid email or password."
+        : error.message;
+      if (message) message.textContent = text;
+      else alert(text);
+      return;
+    }
+
     const { data } = await db.auth.getSession();
     currentUser = data.session?.user || null;
-    await loadCurrentUserRole();
+    const profile = await loadCurrentUserRole();
+    if (!profile?.approved) {
+      await db.auth.signOut();
+      currentUser = null;
+      currentUserRole = "";
+      normalizedUserRole = "";
+      state = JSON.parse(JSON.stringify(blankState));
+      showAuthGate("Your account exists but has not been approved by an administrator.");
+      return;
+    }
+
     await evaluateAccess();
+  } finally {
+    if (button) button.disabled = false;
   }
 }
 
-async function createAccount() {
+async function createAccount(event) {
+  event?.preventDefault();
   if (!dbReady || !db) return alert("Supabase login is not configured.");
   const email = (document.getElementById("authGateEmail")?.value || "").trim();
   const password = document.getElementById("authGatePassword")?.value || "";
@@ -451,7 +480,10 @@ async function createAccount() {
   try {
     const { data, error } = await db.auth.signUp({ email, password });
     if (error) {
-      if (message) message.textContent = error.message;
+      const text = String(error.message || "").toLowerCase().includes("rate limit")
+        ? "Account request could not be created because the email service is temporarily rate limited. Contact an administrator."
+        : error.message;
+      if (message) message.textContent = text;
       return;
     }
     currentUser = data.user || null;
