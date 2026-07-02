@@ -332,8 +332,14 @@
                 <label>Immediate Access Action<select name="accessAction"><option>Temporary Pending Review</option><option>No Restriction Pending Facts</option><option>Site-Specific Restriction</option><option>Suspended Pending Review</option><option>Banned From Site</option></select></label>
               </div>
               <label class="wide-label">Event Summary<textarea name="eventSummary" placeholder="Summarize the reported event, immediate action, known facts, and pending review items."></textarea></label>
-              <div class="upload-zone">
-                <label for="evidenceFiles">Evidence Upload</label>
+              <div class="upload-zone evidence-upload-section">
+                <div class="upload-heading">
+                  <div>
+                    <label for="evidenceFiles">Documentation / Photo Upload</label>
+                    <span>Attach evidence before submitting the event. Files upload to Supabase Storage and are linked to the incident record.</span>
+                  </div>
+                  <strong id="evidenceFileCount">No files selected</strong>
+                </div>
                 <input
                   id="evidenceFiles"
                   name="evidenceFiles"
@@ -341,7 +347,17 @@
                   multiple
                   accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.csv,.txt,.rtf"
                 />
-                <span>Photos, statements, switching logs, LOTO forms, training records, and supervisor notes</span>
+                <div class="upload-guidance">
+                  <span>Photos</span>
+                  <span>Statements</span>
+                  <span>Locate tickets</span>
+                  <span>Switching logs</span>
+                  <span>LOTO forms</span>
+                  <span>Training records</span>
+                  <span>Supervisor notes</span>
+                  <span>Damage assessments</span>
+                </div>
+                <div id="selectedEvidenceList" class="selected-evidence-list">No documentation selected yet.</div>
               </div>
               <button type="submit" class="primary-btn" id="submitForReview">Submit for Review</button>
               <div id="submissionMessage" class="form-message" role="status" aria-live="polite"></div>

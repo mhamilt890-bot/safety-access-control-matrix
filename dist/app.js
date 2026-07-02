@@ -855,6 +855,19 @@ function renderEvidenceAttachments(record) {
   }).join("")}</div>`;
 }
 
+function renderSelectedEvidenceList() {
+  const input = document.getElementById("evidenceFiles");
+  const list = document.getElementById("selectedEvidenceList");
+  const count = document.getElementById("evidenceFileCount");
+  if (!input || !list || !count) return;
+  const files = [...(input.files || [])];
+  count.textContent = files.length ? `${files.length} file${files.length === 1 ? "" : "s"} selected` : "No files selected";
+  list.innerHTML = files.length ? files.map((file) => `<div class="selected-evidence-item">
+    <strong>${escapeHtml(file.name)}</strong>
+    <span>${escapeHtml(file.type || "Unknown type")} | ${formatFileSize(file.size)}</span>
+  </div>`).join("") : "No documentation selected yet.";
+}
+
 function chipClass(value) {
   const text = String(value || "");
   if (text.includes("Banned") || text.includes("Revoked") || text === "Critical") return "red";
@@ -1997,6 +2010,7 @@ async function submitForReview(event) {
     renderAll();
     form.reset();
     document.getElementById("eventCategorySelect").selectedIndex = 0;
+    renderSelectedEvidenceList();
     message.textContent = record.evidenceAttachments.length ? "Record submitted with evidence attached." : "Record submitted for review.";
     switchPage("incidents");
   } catch (error) {
@@ -2193,6 +2207,7 @@ async function init() {
   document.getElementById("printReport").addEventListener("click", () => window.print());
   document.getElementById("loadDemoData").addEventListener("click", loadDemoData);
   document.getElementById("resetDemoData").addEventListener("click", resetDemoData);
+  document.getElementById("evidenceFiles").addEventListener("change", renderSelectedEvidenceList);
   document.getElementById("addWorker").addEventListener("click", () => openRecordEditor(blankRecord({ source: "Manual Worker Matrix Entry" }), "Manual Matrix Entry / Backfill Record"));
   document.getElementById("appLogoutBtn").addEventListener("click", logoutAccessGate);
   document.getElementById("intakeForm").addEventListener("submit", submitForReview);
