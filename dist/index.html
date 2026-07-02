@@ -54,6 +54,7 @@
         <nav class="nav-list" aria-label="Main navigation">
           <button class="nav-item active" data-page="dashboard">Dashboard</button>
           <button class="nav-item" data-page="program">Utility Program</button>
+          <button class="nav-item" data-page="damage">Damage Prevention</button>
           <button class="nav-item" data-page="matrix">Worker Matrix</button>
           <button class="nav-item" data-page="controls">Critical Controls</button>
           <button class="nav-item" data-page="incidents">Incident Records</button>
@@ -182,6 +183,32 @@
           </div>
         </section>
 
+        <section id="damage" class="page">
+          <div class="dashboard-grid">
+            <article class="panel">
+              <div class="panel-heading">
+                <h2>Underground Damage Prevention</h2>
+                <span>Hydrovac, bore strike, potholing, locate, and utility-owner notification tracking</span>
+              </div>
+              <div id="damagePreventionSummary" class="summary-list"></div>
+            </article>
+            <article class="panel">
+              <div class="panel-heading">
+                <h2>Open Strike / Locate Reviews</h2>
+                <span>Events needing field verification, owner response, or corrective action</span>
+              </div>
+              <div id="damagePreventionList" class="record-list"></div>
+            </article>
+          </div>
+          <article class="panel alert-panel">
+            <div class="panel-heading">
+              <h2>Damage Prevention Critical Controls</h2>
+              <span>Controls expected before hydrovac, boring, trenching, potholing, and civil excavation</span>
+            </div>
+            <div id="damageControlsList" class="control-library"></div>
+          </article>
+        </section>
+
         <section id="matrix" class="page">
           <p class="workflow-note">Worker Matrix is the access-control review and investigation tracking view. New Event submissions appear here automatically; use manual matrix entry only for backfill, corrections, or records not submitted through intake.</p>
           <div class="toolbar">
@@ -288,6 +315,16 @@
                 <label>SIF Control Category<select name="sifControl"><option>Needs Review</option><option>Controllable SIF</option><option>Uncontrollable SIF</option><option>Not SIF</option></select></label>
                 <label>Critical Control Status<select name="criticalControlStatus"><option>Failed / Missing</option><option>Effective</option><option>Pending Verification</option><option>Not Applicable</option></select></label>
                 <label>Critical Control Detail<input name="criticalControlDetail" placeholder="Failed, missing, or effective control" /></label>
+                <label>Damage Prevention Method<select name="damageMethod" id="damageMethodSelect"></select></label>
+                <label>Facility Type<select name="facilityType" id="facilityTypeSelect"></select></label>
+                <label>Locate Ticket Number<input name="locateTicket" placeholder="Locate ticket or one-call reference" /></label>
+                <label>Locate Ticket Status<select name="locateStatus" id="locateStatusSelect"></select></label>
+                <label>Marks Visible<select name="marksVisible"><option>Yes</option><option>No</option><option>Partial</option><option>Conflicting</option><option>Not Applicable</option></select></label>
+                <label>Potholing Completed<select name="potholingCompleted"><option>Yes</option><option>No</option><option>Partial</option><option>Not Required</option></select></label>
+                <label>Tolerance Zone Followed<select name="toleranceZone"><option>Yes</option><option>No</option><option>Needs Review</option><option>Not Applicable</option></select></label>
+                <label>Bore Path Verified<select name="borePathVerified"><option>Yes</option><option>No</option><option>Changed in Field</option><option>Not Applicable</option></select></label>
+                <label>Strike Severity<select name="strikeSeverity" id="strikeSeveritySelect"></select></label>
+                <label>Utility Owner Notification<select name="ownerNotificationStatus" id="ownerNotificationStatusSelect"></select></label>
                 <label>Investigation Status<select name="investigation"><option>Event Reported</option><option>Under Review</option><option>Evidence Collected</option><option>Contractor Response Requested</option><option>Safety Review Completed</option><option>Corrective Action Assigned</option></select></label>
                 <label>Evidence Status<select name="evidence"><option>Partial</option><option>None</option><option>Complete</option><option>Pending Upload</option></select></label>
                 <label>Corrective Action Required<select name="correctiveRequired"><option>Yes</option><option>No</option><option>Pending Review</option></select></label>

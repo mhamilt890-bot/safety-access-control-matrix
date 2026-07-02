@@ -7,6 +7,11 @@ const eventCategories = [
   "Dropped Conductor / Conductor Control",
   "Equipment Contact with Overhead Lines",
   "Excavation Utility Conflict",
+  "Hydrovac Utility Damage",
+  "Directional Bore Strike",
+  "Potholing / Daylighting Miss",
+  "Locate Mismatch / Marking Conflict",
+  "Unknown Facility Encounter",
   "Rigging Failure / Suspended Load",
   "Helicopter Load Control",
   "Substation Access Boundary",
@@ -44,6 +49,10 @@ const workTypes = [
   "Pole Setting / Framing",
   "Reconductoring / Stringing",
   "Excavation / Civil",
+  "Hydrovac / Vacuum Excavation",
+  "Directional Boring",
+  "Potholing / Daylighting",
+  "Trenching / Open Cut",
   "Crane / Rigging / Hoisting",
   "Helicopter / External Load",
   "Traffic Control",
@@ -70,6 +79,36 @@ const operatingDomains = [
 
 const programRiskTiers = ["Routine", "Elevated", "High Risk", "Critical Control Required", "Executive Review"];
 
+const damagePreventionMethods = [
+  "Hydrovac",
+  "Directional Bore",
+  "Open Cut",
+  "Potholing / Daylighting",
+  "Trenching",
+  "Plowing",
+  "Auger",
+  "Hand Dig",
+  "Vacuum Excavation Support",
+  "No Strike / Near Miss"
+];
+
+const facilityTypes = [
+  "Electric Primary",
+  "Electric Secondary",
+  "Gas",
+  "Fiber",
+  "Water",
+  "Sewer",
+  "Communication",
+  "Streetlight / Traffic",
+  "Unknown Facility",
+  "No Damage / Good Catch"
+];
+
+const locateStatuses = ["Valid", "Expired", "Missing", "Incorrect", "Conflicting", "Not Required", "Needs Review"];
+const strikeSeverities = ["No Damage / Good Catch", "Coating Damage", "Service Line Damage", "Primary Electric Strike", "Gas Release", "Public Impact", "Major Outage", "Regulatory Reportable"];
+const ownerNotificationStatuses = ["Notified", "Acknowledged", "Field Rep Dispatched", "Damage Assessment Complete", "Claim / Recovery Pending", "Closed", "Not Required"];
+
 const contractorNames = [
   "Summit Line Services",
   "High Desert Utility Contractors",
@@ -90,6 +129,10 @@ const criticalControlsLibrary = [
   ["Underground Distribution", "Backfeed identification", "All alternate feeds, customer generation, and induced energy paths are checked before touch."],
   ["Substation", "Substation access and arc-flash boundaries", "Access authorization, arc-flash PPE, barriers, and energized boundary controls are documented."],
   ["Excavation / Civil", "Excavation utility locate", "Locate ticket, potholing, spotter, and tolerance-zone controls are confirmed before digging."],
+  ["Hydrovac / Vacuum Excavation", "Daylighting and facility exposure verification", "Vacuum pressure, spoil control, facility support, and positive visual verification are documented."],
+  ["Directional Boring", "Bore path and tolerance-zone verification", "Locate ticket, bore plan, potholing, depth checks, steering log, and spotter controls are verified."],
+  ["Potholing / Daylighting", "Positive facility identification", "Facility type, depth, alignment, owner, and clearance from planned work path are verified before production work."],
+  ["Trenching / Open Cut", "Excavation protection and utility crossing control", "Locate quality, competent person, protective systems, crossing exposure, and emergency plan are confirmed."],
   ["Crane / Rigging / Hoisting", "Rigging inspection", "Rigging, lift plan, exclusion zone, and qualified signal/spotter roles are verified."],
   ["Helicopter / External Load", "Helicopter exclusion zone / communication plan", "Landing zone, external-load route, radio plan, and ground exclusion controls are in place."],
   ["Traffic Control", "Traffic control setup", "MUTCD-aligned setup, public protection, and spotter exposure controls are verified."],
@@ -1046,6 +1089,11 @@ function renderFilters() {
   document.getElementById("workTypeSelect").innerHTML = workTypes.map((type) => `<option>${type}</option>`).join("");
   document.getElementById("operatingDomainSelect").innerHTML = operatingDomains.map((domain) => `<option>${domain}</option>`).join("");
   document.getElementById("programRiskSelect").innerHTML = programRiskTiers.map((tier) => `<option>${tier}</option>`).join("");
+  document.getElementById("damageMethodSelect").innerHTML = damagePreventionMethods.map((method) => `<option>${method}</option>`).join("");
+  document.getElementById("facilityTypeSelect").innerHTML = facilityTypes.map((type) => `<option>${type}</option>`).join("");
+  document.getElementById("locateStatusSelect").innerHTML = locateStatuses.map((status) => `<option>${status}</option>`).join("");
+  document.getElementById("strikeSeveritySelect").innerHTML = strikeSeverities.map((severity) => `<option>${severity}</option>`).join("");
+  document.getElementById("ownerNotificationStatusSelect").innerHTML = ownerNotificationStatuses.map((status) => `<option>${status}</option>`).join("");
 }
 
 function recordActions(record) {
@@ -1098,6 +1146,44 @@ function renderCriticalControls() {
   }).join("");
 }
 
+function isDamagePreventionRecord(record) {
+  return ["Hydrovac", "Directional Bore", "Open Cut", "Potholing / Daylighting", "Trenching", "Plowing", "Auger", "Hand Dig", "Vacuum Excavation Support"].includes(record.damageMethod) ||
+    ["Hydrovac / Vacuum Excavation", "Directional Boring", "Potholing / Daylighting", "Trenching / Open Cut", "Excavation / Civil", "Underground Distribution"].includes(record.workType) ||
+    ["Hydrovac Utility Damage", "Directional Bore Strike", "Potholing / Daylighting Miss", "Locate Mismatch / Marking Conflict", "Unknown Facility Encounter", "Excavation Utility Conflict"].includes(record.type);
+}
+
+function renderDamagePrevention() {
+  const records = state.records.filter(isDamagePreventionRecord);
+  const openReviews = records.filter((r) => !["Closed", "Final Access Decision"].includes(r.investigation));
+  const summaryItems = [
+    ["Damage Prevention Records", records.length],
+    ["Hydrovac Events", records.filter((r) => r.damageMethod === "Hydrovac" || r.workType === "Hydrovac / Vacuum Excavation").length],
+    ["Bore Strike / Near Miss", records.filter((r) => r.damageMethod === "Directional Bore" || r.type === "Directional Bore Strike").length],
+    ["Locate Issues", records.filter((r) => ["Expired", "Missing", "Incorrect", "Conflicting", "Needs Review"].includes(r.locateStatus)).length],
+    ["Potholing Not Complete", records.filter((r) => ["No", "Partial"].includes(r.potholingCompleted)).length],
+    ["Owner Notifications Open", records.filter((r) => !["Closed", "Not Required"].includes(r.ownerNotificationStatus)).length],
+    ["Repeat Strike Flags", records.filter((r) => ["Yes", "Monitor"].includes(r.repeatStrikeFlag)).length],
+    ["High-Severity Strikes", records.filter((r) => !["No Damage / Good Catch", "Coating Damage"].includes(r.strikeSeverity)).length]
+  ];
+  document.getElementById("damagePreventionSummary").innerHTML = summaryItems
+    .map(([label, value]) => `<div class="summary-item"><span>${label}</span><strong>${value}</strong></div>`)
+    .join("");
+  document.getElementById("damagePreventionList").innerHTML = openReviews.length ? openReviews.slice(0, 12).map((r) => `<div class="record-item">
+    <div><strong>${escapeHtml(r.type)}</strong><div class="meta">${escapeHtml(r.contractor)} | ${escapeHtml(r.project)} | ${escapeHtml(r.damageMethod)}</div></div>
+    <div>Facility: ${escapeHtml(r.facilityType)} | Ticket: ${escapeHtml(r.locateTicket || "Not logged")} | Locate: ${escapeHtml(r.locateStatus)}<div class="meta">Potholing: ${escapeHtml(r.potholingCompleted)} | Tolerance zone: ${escapeHtml(r.toleranceZone)} | Bore path: ${escapeHtml(r.borePathVerified)}</div><div class="meta">Owner notification: ${escapeHtml(r.ownerNotificationStatus)} | Root cause: ${escapeHtml(r.damageRootCause)}</div></div>
+    <div>${chip(r.strikeSeverity)}</div>${recordActions(r)}
+  </div>`).join("") : emptyState("No open damage prevention reviews.");
+  const damageControls = [
+    ["Valid locate ticket", records.filter((r) => r.locateStatus === "Valid").length],
+    ["Marks visible / reconciled", records.filter((r) => r.marksVisible === "Yes").length],
+    ["Positive potholing complete", records.filter((r) => r.potholingCompleted === "Yes").length],
+    ["Tolerance zone followed", records.filter((r) => r.toleranceZone === "Yes").length],
+    ["Bore path verified", records.filter((r) => r.borePathVerified === "Yes").length],
+    ["Owner notification closed", records.filter((r) => r.ownerNotificationStatus === "Closed").length]
+  ];
+  document.getElementById("damageControlsList").innerHTML = damageControls.map(([control, value]) => `<article class="control-card"><div><strong>${control}</strong><span>${value} verified records</span></div><p>Review exceptions where this control is missing, partial, conflicting, or pending utility-owner response.</p></article>`).join("");
+}
+
 function renderRecordLists() {
   const restrictedRecords = state.records.filter(isRestrictedRecord);
   document.getElementById("restrictedList").innerHTML = restrictedRecords.length ? restrictedRecords
@@ -1113,7 +1199,7 @@ function renderRecordLists() {
 function renderIncidents() {
   const records = activeRecords();
   document.getElementById("incidentList").innerHTML = records.length ? records
-    .map((r) => `<div class="record-item incident-card"><div><strong>${escapeHtml(r.date)} | ${escapeHtml(r.type)}</strong><div class="meta">${escapeHtml(r.name)} | ${escapeHtml(r.contractor)} | ${escapeHtml(r.workType)} | ${escapeHtml(r.project)}</div></div><div>${escapeHtml(r.notes)}<div class="meta">SIF: ${escapeHtml(r.sif)} | Control: ${escapeHtml(r.sifControl)} | Critical control: ${escapeHtml(r.criticalControlStatus)} - ${escapeHtml(r.criticalControlDetail)}</div><div class="meta">Stop work: ${escapeHtml(r.stopWork)} | Removed from site: ${escapeHtml(r.removedFromSite)} | Utility restriction: ${escapeHtml(r.utilityRestriction)}</div><div class="meta">RCA: ${escapeHtml(r.rca)} | Corrective action: ${escapeHtml(r.correctiveStatus)} | Re-dispatch concern: ${escapeHtml(r.reDispatchConcern)}</div>${renderEvidenceAttachments(r)}</div><div>${chip(r.managementReview)}</div>${recordActions(r)}</div>`)
+    .map((r) => `<div class="record-item incident-card"><div><strong>${escapeHtml(r.date)} | ${escapeHtml(r.type)}</strong><div class="meta">${escapeHtml(r.name)} | ${escapeHtml(r.contractor)} | ${escapeHtml(r.workType)} | ${escapeHtml(r.project)}</div></div><div>${escapeHtml(r.notes)}<div class="meta">SIF: ${escapeHtml(r.sif)} | Control: ${escapeHtml(r.sifControl)} | Critical control: ${escapeHtml(r.criticalControlStatus)} - ${escapeHtml(r.criticalControlDetail)}</div>${isDamagePreventionRecord(r) ? `<div class="meta">Damage prevention: ${escapeHtml(r.damageMethod)} | Facility: ${escapeHtml(r.facilityType)} | Locate: ${escapeHtml(r.locateStatus)} | Strike severity: ${escapeHtml(r.strikeSeverity)}</div>` : ""}<div class="meta">Stop work: ${escapeHtml(r.stopWork)} | Removed from site: ${escapeHtml(r.removedFromSite)} | Utility restriction: ${escapeHtml(r.utilityRestriction)}</div><div class="meta">RCA: ${escapeHtml(r.rca)} | Corrective action: ${escapeHtml(r.correctiveStatus)} | Re-dispatch concern: ${escapeHtml(r.reDispatchConcern)}</div>${renderEvidenceAttachments(r)}</div><div>${chip(r.managementReview)}</div>${recordActions(r)}</div>`)
     .join("") : emptyState("No records entered yet.");
 }
 
@@ -1134,7 +1220,12 @@ function renderReports() {
     ["SIF Potential Trend", current.filter((r) => ["High", "Critical"].includes(r.sif)).length],
     ["Critical Controls Failure Summary", current.filter((r) => r.criticalControlStatus === "Failed / Missing").length],
     ["Reinstatement Pending Report", current.filter((r) => ["Required", "Conditional", "Pending Review"].includes(r.reinstatementRequired) && r.returnStatus !== "Cleared").length],
-    ["High-Risk Work Lookahead", current.filter((r) => ["Transmission Line", "Substation", "Helicopter / External Load", "Energized Work / MAD Exposure"].includes(r.workType)).length]
+    ["High-Risk Work Lookahead", current.filter((r) => ["Transmission Line", "Substation", "Helicopter / External Load", "Energized Work / MAD Exposure"].includes(r.workType)).length],
+    ["Underground Strike Summary", current.filter(isDamagePreventionRecord).length],
+    ["Hydrovac Damage Prevention Report", current.filter((r) => r.damageMethod === "Hydrovac").length],
+    ["Contractor Bore Strike Trend", current.filter((r) => r.damageMethod === "Directional Bore" || r.type === "Directional Bore Strike").length],
+    ["Locate Quality / Mismatch Report", current.filter((r) => ["Incorrect", "Conflicting", "Expired", "Missing"].includes(r.locateStatus)).length],
+    ["Open Utility Owner Notifications", current.filter((r) => !["Closed", "Not Required"].includes(r.ownerNotificationStatus)).length]
   ];
   const summary = current.length ? items.map(([label, value]) => `<div class="summary-item"><span>${label}</span><strong>${value}</strong></div>`).join("") : emptyState("No records entered yet.");
   const reportRecords = state.reportRecords.length ? state.reportRecords.map((r) => `<div class="record-item"><div><strong>${escapeHtml(r.title)}</strong><div class="meta">${escapeHtml(r.date)} | ${escapeHtml(r.owner)}</div></div><div>${escapeHtml(r.notes)}</div><div>${recordReportActions(r)}</div></div>`).join("") : emptyState("No records entered yet.");
@@ -1244,6 +1335,7 @@ function renderAll() {
   renderAlerts();
   renderWorkflow();
   renderCriticalControls();
+  renderDamagePrevention();
   renderRecordLists();
   renderIncidents();
   renderCorrective();
@@ -1290,6 +1382,24 @@ function blankRecord(overrides = {}) {
     sifControl: overrides.sifControl || "Needs Review",
     criticalControlStatus: overrides.criticalControlStatus || "Pending Verification",
     criticalControlDetail: overrides.criticalControlDetail || "",
+    damageMethod: overrides.damageMethod || "No Strike / Near Miss",
+    facilityType: overrides.facilityType || "No Damage / Good Catch",
+    locateTicket: overrides.locateTicket || "",
+    locateStatus: overrides.locateStatus || "Needs Review",
+    marksVisible: overrides.marksVisible || "Not Applicable",
+    potholingCompleted: overrides.potholingCompleted || "Not Required",
+    toleranceZone: overrides.toleranceZone || "Not Applicable",
+    borePathVerified: overrides.borePathVerified || "Not Applicable",
+    depthVerified: overrides.depthVerified || "",
+    utilityOwner: overrides.utilityOwner || "",
+    ownerNotificationStatus: overrides.ownerNotificationStatus || "Not Required",
+    emergencyResponse: overrides.emergencyResponse || "No",
+    serviceInterruption: overrides.serviceInterruption || "No",
+    publicExposure: overrides.publicExposure || "No",
+    environmentalRelease: overrides.environmentalRelease || "No",
+    strikeSeverity: overrides.strikeSeverity || "No Damage / Good Catch",
+    damageRootCause: overrides.damageRootCause || "Needs Review",
+    repeatStrikeFlag: overrides.repeatStrikeFlag || "No",
     investigation: overrides.investigation || "Event Reported",
     evidence: overrides.evidence || "Partial",
     access: overrides.access || "Under Review",
@@ -1374,6 +1484,24 @@ function openRecordEditor(record = null, context = "record") {
       ${selectField("sifControl", "SIF Control Category", current.sifControl, ["Controllable SIF", "Uncontrollable SIF", "Not SIF", "Needs Review"])}
       ${selectField("criticalControlStatus", "Critical Control Status", current.criticalControlStatus, ["Effective", "Failed / Missing", "Pending Verification", "Not Applicable"])}
       ${field("criticalControlDetail", "Critical Control Detail", current.criticalControlDetail)}
+      ${selectField("damageMethod", "Damage Prevention Method", current.damageMethod, damagePreventionMethods)}
+      ${selectField("facilityType", "Facility Type", current.facilityType, facilityTypes)}
+      ${field("locateTicket", "Locate Ticket / One-Call Reference", current.locateTicket)}
+      ${selectField("locateStatus", "Locate Ticket Status", current.locateStatus, locateStatuses)}
+      ${selectField("marksVisible", "Marks Visible", current.marksVisible, ["Yes", "No", "Partial", "Conflicting", "Not Applicable"])}
+      ${selectField("potholingCompleted", "Potholing / Daylighting Completed", current.potholingCompleted, ["Yes", "No", "Partial", "Not Required"])}
+      ${selectField("toleranceZone", "Tolerance Zone Followed", current.toleranceZone, ["Yes", "No", "Needs Review", "Not Applicable"])}
+      ${selectField("borePathVerified", "Bore Path Verified", current.borePathVerified, ["Yes", "No", "Changed in Field", "Not Applicable"])}
+      ${field("depthVerified", "Depth Verified", current.depthVerified)}
+      ${field("utilityOwner", "Facility / Utility Owner", current.utilityOwner)}
+      ${selectField("ownerNotificationStatus", "Utility Owner Notification", current.ownerNotificationStatus, ownerNotificationStatuses)}
+      ${selectField("strikeSeverity", "Strike Severity", current.strikeSeverity, strikeSeverities)}
+      ${selectField("emergencyResponse", "Emergency Response Required", current.emergencyResponse, ["No", "Yes"])}
+      ${selectField("serviceInterruption", "Service Interruption", current.serviceInterruption, ["No", "Yes"])}
+      ${selectField("publicExposure", "Public Exposure", current.publicExposure, ["No", "Yes"])}
+      ${selectField("environmentalRelease", "Environmental Release", current.environmentalRelease, ["No", "Yes"])}
+      ${selectField("damageRootCause", "Damage Prevention Root Cause", current.damageRootCause, ["Needs Review", "Locate issue", "Crew deviation", "Print mismatch", "Unknown facility", "Depth conflict", "Poor communication", "Procedure not followed"])}
+      ${selectField("repeatStrikeFlag", "Repeat Strike Contractor Flag", current.repeatStrikeFlag, ["No", "Yes", "Monitor"])}
       ${selectField("investigation", "Investigation Status", current.investigation, ["Event Reported", "Under Review", "Evidence Collected", "Contractor Response Requested", "Safety Review Completed", "Final Access Decision", "Corrective Action Assigned", "Closed"])}
       ${selectField("evidence", "Evidence Status", current.evidence, ["None", "Partial", "Complete", "Pending Upload"])}
       ${selectField("access", "Access Status", current.access, ["Under Review", "Clear", "Monitor", "Restricted", "Suspended", "Banned From Site"])}
@@ -1617,7 +1745,12 @@ function buildDemoRecords() {
     ["Hydro unit wicket gate stored-energy isolation concern.", "Generator / Turbine Protection Event", "Power Generation - Hydro", "High", "Critical", "Pending Verification", "Water conveyance and mechanical isolation"],
     ["BESS DC disconnect labeling issue during inspection.", "Battery Energy Storage Exposure", "Power Generation - Solar / BESS", "Moderate", "High", "Failed / Missing", "DC arc-flash and battery thermal-runaway controls"],
     ["Relay test block configuration nearly tripped wrong feeder.", "Relay / Protection Misoperation", "Relay / Protection / SCADA", "High", "Critical", "Failed / Missing", "Protection scheme and control-point verification"],
-    ["Control room switching hold point was read back incorrectly.", "Control Room / Dispatch Communication Event", "Control Room / Dispatch Operations", "High", "High", "Pending Verification", "Three-part communication and hold-point control"]
+    ["Control room switching hold point was read back incorrectly.", "Control Room / Dispatch Communication Event", "Control Room / Dispatch Operations", "High", "High", "Pending Verification", "Three-part communication and hold-point control"],
+    ["Hydrovac exposed unmarked secondary conduit during daylighting.", "Hydrovac Utility Damage", "Hydrovac / Vacuum Excavation", "High", "High", "Failed / Missing", "Daylighting and facility exposure verification"],
+    ["Directional bore crossed marked fiber tolerance zone.", "Directional Bore Strike", "Directional Boring", "High", "Critical", "Failed / Missing", "Bore path and tolerance-zone verification"],
+    ["Potholing was partial before trenching at road crossing.", "Potholing / Daylighting Miss", "Potholing / Daylighting", "Moderate", "High", "Pending Verification", "Positive facility identification"],
+    ["Locate marks conflicted with as-built drawings near padmount.", "Locate Mismatch / Marking Conflict", "Trenching / Open Cut", "Moderate", "High", "Failed / Missing", "Excavation protection and utility crossing control"],
+    ["Unknown service encountered during civil foundation excavation.", "Unknown Facility Encounter", "Excavation / Civil", "High", "High", "Pending Verification", "Excavation utility locate"]
   ];
   const names = ["Avery Cole", "Jordan Vale", "Taylor Reed", "Morgan Blake", "Casey Lane", "Riley Quinn", "Drew Harper", "Skyler Stone", "Rowan Pierce", "Jamie Cross", "Parker Ellis", "Kendall Brooks"];
   const projects = ["North Loop Feeder", "Mesa 230 kV Rebuild", "Canyon Substation", "West Valley URD", "Ridge Tie Line", "Airport Road Civil", "Summit Storm Patrol", "Riverbend Padmounts", "Fictional Creek Hydro", "South Mesa BESS", "Unit 4 Gas Turbine", "Control Center Desk"];
@@ -1652,6 +1785,28 @@ function buildDemoRecords() {
       assetClass: ["Feeder", "Transmission structure", "Substation bay", "Padmount transformer", "Switchyard", "Hydro unit", "BESS container", "Control desk"][index % 8],
       energySource: ["AC electrical", "Induced voltage", "DC battery", "Hydraulic stored energy", "Mechanical rotation", "Thermal / pressure", "Traffic / public exposure"][index % 7],
       programRisk: severity === "Critical" || index % 9 === 0 ? "Executive Review" : ["Elevated", "High Risk", "Critical Control Required"][index % 3],
+      damageMethod: scenario[2] === "Hydrovac / Vacuum Excavation" ? "Hydrovac" :
+        scenario[2] === "Directional Boring" ? "Directional Bore" :
+        scenario[2] === "Potholing / Daylighting" ? "Potholing / Daylighting" :
+        scenario[2] === "Trenching / Open Cut" ? "Open Cut" :
+        scenario[2] === "Excavation / Civil" ? "Trenching" : "No Strike / Near Miss",
+      facilityType: ["Electric Primary", "Electric Secondary", "Gas", "Fiber", "Water", "Unknown Facility", "No Damage / Good Catch"][index % 7],
+      locateTicket: `811-DEMO-${String(1200 + index)}`,
+      locateStatus: ["Valid", "Incorrect", "Conflicting", "Expired", "Needs Review"][index % 5],
+      marksVisible: ["Yes", "Partial", "Conflicting", "No"][index % 4],
+      potholingCompleted: ["Yes", "Partial", "No", "Not Required"][index % 4],
+      toleranceZone: ["Yes", "Needs Review", "No", "Not Applicable"][index % 4],
+      borePathVerified: scenario[2] === "Directional Boring" ? ["Changed in Field", "No", "Yes"][index % 3] : "Not Applicable",
+      depthVerified: `${24 + (index % 30)} in.`,
+      utilityOwner: ["Desert Grid Utility", "Municipal Fiber Group", "Western Gas Distribution", "Mesa Water Authority"][index % 4],
+      ownerNotificationStatus: ["Notified", "Acknowledged", "Field Rep Dispatched", "Damage Assessment Complete", "Claim / Recovery Pending", "Closed"][index % 6],
+      emergencyResponse: index % 11 === 0 ? "Yes" : "No",
+      serviceInterruption: index % 13 === 0 ? "Yes" : "No",
+      publicExposure: index % 9 === 0 ? "Yes" : "No",
+      environmentalRelease: index % 17 === 0 ? "Yes" : "No",
+      strikeSeverity: ["No Damage / Good Catch", "Coating Damage", "Service Line Damage", "Primary Electric Strike", "Gas Release", "Public Impact"][index % 6],
+      damageRootCause: ["Needs Review", "Locate issue", "Crew deviation", "Print mismatch", "Unknown facility", "Depth conflict", "Poor communication"][index % 7],
+      repeatStrikeFlag: index % 8 === 0 ? "Monitor" : "No",
       severity,
       sif,
       sifControl: sif === "Critical" ? "Controllable SIF" : "Needs Review",
@@ -1707,6 +1862,11 @@ function buildDemoReports() {
     "Transmission / Substation Risk Review",
     "Power Generation Readiness Review",
     "System Operations Communication Review",
+    "Underground Strike Summary",
+    "Hydrovac Damage Prevention Report",
+    "Contractor Bore Strike Trend",
+    "Locate Quality / Mismatch Report",
+    "Open Utility Owner Notifications",
     "Good Catch Report",
     "Stop Work Report"
   ];
@@ -1785,6 +1945,17 @@ function submittedRecordFromForm(form) {
     sifControl: data.sifControl || "Needs Review",
     criticalControlStatus: data.criticalControlStatus || "Pending Verification",
     criticalControlDetail: data.criticalControlDetail || "",
+    damageMethod: data.damageMethod || "No Strike / Near Miss",
+    facilityType: data.facilityType || "No Damage / Good Catch",
+    locateTicket: data.locateTicket || "",
+    locateStatus: data.locateStatus || "Needs Review",
+    marksVisible: data.marksVisible || "Not Applicable",
+    potholingCompleted: data.potholingCompleted || "Not Required",
+    toleranceZone: data.toleranceZone || "Not Applicable",
+    borePathVerified: data.borePathVerified || "Not Applicable",
+    ownerNotificationStatus: data.ownerNotificationStatus || "Not Required",
+    strikeSeverity: data.strikeSeverity || "No Damage / Good Catch",
+    damageRootCause: data.locateStatus === "Incorrect" || data.locateStatus === "Conflicting" ? "Locate issue" : "Needs Review",
     investigation: data.investigation || "Under Review",
     evidence: data.evidence || "Partial",
     action: data.correctiveRequired === "Yes" ? `Corrective action required for ${data.criticalControlDetail || data.eventCategory}` : "",
