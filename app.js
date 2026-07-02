@@ -1124,8 +1124,11 @@ function openRecordEditor(record = null, context = "record") {
   editing = { type: "record", id: record?.id || null };
   const current = blankRecord(record || {});
   const host = document.getElementById("editorHost");
+  const helperText = context === "Manual Matrix Entry / Backfill Record"
+    ? "Matrix entries track access review, investigation status, restrictions, reinstatement decisions, and historical contractor context. Use this form for backfill, corrections, or records not submitted through Serious Event Intake."
+    : "Save or cancel your changes";
   host.innerHTML = `<form class="panel editor-panel" id="recordEditor">
-    <div class="panel-heading"><h2>${record ? "Edit" : "Add"} ${context}</h2><span>Save or cancel your changes</span></div>
+    <div class="panel-heading"><h2>${record ? "Edit" : "Add"} ${context}</h2><span>${helperText}</span></div>
     <div class="form-grid">
       ${field("id", "Record ID / Badge ID", current.id)}
       ${field("name", "Worker / Record Name", current.name)}
@@ -1595,7 +1598,7 @@ async function init() {
   });
   document.getElementById("reportPdfExport").addEventListener("click", () => window.print());
   document.getElementById("printReport").addEventListener("click", () => window.print());
-  document.getElementById("addWorker").addEventListener("click", () => openRecordEditor(blankRecord({ source: "Manual Worker Matrix Entry" }), "Worker"));
+  document.getElementById("addWorker").addEventListener("click", () => openRecordEditor(blankRecord({ source: "Manual Worker Matrix Entry" }), "Manual Matrix Entry / Backfill Record"));
   document.getElementById("appLogoutBtn").addEventListener("click", logoutAccessGate);
   document.getElementById("intakeForm").addEventListener("submit", submitForReview);
   document.addEventListener("click", handleDocumentClick);

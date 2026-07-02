@@ -126,6 +126,7 @@
         </section>
 
         <section id="matrix" class="page">
+          <p class="workflow-note">Worker Matrix is the access-control review and investigation tracking view. New Event submissions appear here automatically; use manual matrix entry only for backfill, corrections, or records not submitted through intake.</p>
           <div class="toolbar">
             <select id="statusFilter" aria-label="Access status filter">
               <option value="">All access statuses</option>
@@ -149,7 +150,7 @@
               <option value="">All banned statuses</option>
             </select>
             <button class="ghost-btn" id="clearFilters">Clear Filters</button>
-            <button class="primary-btn" id="addWorker">Add Worker</button>
+            <button class="primary-btn" id="addWorker">Manual Matrix Entry / Backfill Record</button>
           </div>
           <div class="table-shell">
             <table>
@@ -192,7 +193,7 @@
             <form class="panel intake-form" id="intakeForm">
               <div class="panel-heading">
                 <h2>Serious Event Intake</h2>
-                <span>Temporary restrictions require documented review</span>
+                <span>First report / initial event submission. Saved events automatically populate Worker Matrix as access-control records.</span>
               </div>
               <div class="form-grid">
                 <label>Worker Name<input name="workerName" placeholder="Worker name" /></label>
