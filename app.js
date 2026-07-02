@@ -1,4 +1,17 @@
 const eventCategories = [
+  "Electrical Contact",
+  "Arc Flash / Arc Blast Potential",
+  "Backfeed Exposure",
+  "Missed Cutout / Incomplete Isolation",
+  "Padmount Elbow Flash",
+  "Dropped Conductor / Conductor Control",
+  "Equipment Contact with Overhead Lines",
+  "Excavation Utility Conflict",
+  "Rigging Failure / Suspended Load",
+  "Helicopter Load Control",
+  "Substation Access Boundary",
+  "Traffic Control Exposure",
+  "Stop Work / Good Catch",
   "Energized Work / Minimum Approach Distance",
   "Switching / Clearance / Isolation",
   "Lockout Tagout",
@@ -14,7 +27,52 @@ const eventCategories = [
   "Other"
 ];
 
+const workTypes = [
+  "Overhead Distribution",
+  "Underground Distribution",
+  "Transmission Line",
+  "Substation",
+  "Energized Work / MAD Exposure",
+  "Switching / Clearance / Isolation",
+  "Grounding / EPZ",
+  "Transformer / Padmount / Elbow Work",
+  "Pole Setting / Framing",
+  "Reconductoring / Stringing",
+  "Excavation / Civil",
+  "Crane / Rigging / Hoisting",
+  "Helicopter / External Load",
+  "Traffic Control",
+  "Storm / Emergency Response"
+];
+
+const contractorNames = [
+  "Summit Line Services",
+  "High Desert Utility Contractors",
+  "Ironridge Electric",
+  "NorthPeak Civil & Power",
+  "Mesa Valley Underground",
+  "BlueRiver Transmission Services",
+  "Western Grid Constructors",
+  "RedRock Substation Services"
+];
+
+const criticalControlsLibrary = [
+  ["Overhead Distribution", "Job briefing / tailboard verification", "Crew confirms scope, energy sources, roles, MAD, and stop-work triggers."],
+  ["Energized Work / MAD Exposure", "Minimum approach distance", "Qualified observer verifies phase-to-ground and phase-to-phase approach limits."],
+  ["Switching / Clearance / Isolation", "Switching order / clearance verification", "Switching authority, hold points, clearance limits, and device positions are verified."],
+  ["Grounding / EPZ", "Grounding and bonding / EPZ", "EPZ plan confirms tested absence of voltage, approved grounding locations, and equipotential bonding."],
+  ["Transformer / Padmount / Elbow Work", "Cutout / fuse / source-load verification", "Crew verifies source/load orientation, backfeed exposure, and elbow condition before switching."],
+  ["Underground Distribution", "Backfeed identification", "All alternate feeds, customer generation, and induced energy paths are checked before touch."],
+  ["Substation", "Substation access and arc-flash boundaries", "Access authorization, arc-flash PPE, barriers, and energized boundary controls are documented."],
+  ["Excavation / Civil", "Excavation utility locate", "Locate ticket, potholing, spotter, and tolerance-zone controls are confirmed before digging."],
+  ["Crane / Rigging / Hoisting", "Rigging inspection", "Rigging, lift plan, exclusion zone, and qualified signal/spotter roles are verified."],
+  ["Helicopter / External Load", "Helicopter exclusion zone / communication plan", "Landing zone, external-load route, radio plan, and ground exclusion controls are in place."],
+  ["Traffic Control", "Traffic control setup", "MUTCD-aligned setup, public protection, and spotter exposure controls are verified."],
+  ["Storm / Emergency Response", "Qualified worker verification", "Rapid-response crews are matched to task qualification, fatigue limits, and switching authority."]
+];
+
 const storageKey = "safetyAccessControlMatrixLocalData";
+const demoStorageKey = "safetyAccessControlMatrixDemoMode";
 const oldStorageKeys = ["safetyAccessProductionRecords", "safetyAccessSubmittedRecords", storageKey];
 const buildMarker = "Shared data ownership security build: 2026-07-01 00:00:00 -06:00";
 const accessSessionKey = "safetyAccessGateUnlocked";
@@ -309,6 +367,7 @@ async function loadRemoteState() {
   state.records = (recordsResult.data || []).map(rowToRecord);
   state.reportRecords = (reportsResult.data || []).map(rowToReport);
   state.roles = (rolesResult.data || []).map(rowToRole);
+  applyDemoState();
   if (isAdmin()) await loadProfiles();
 }
 
@@ -735,7 +794,7 @@ function findRoleSelect(userId) {
 }
 
 function tableEmptyState(message = "No records entered yet.") {
-  return `<tr><td colspan="25" class="table-empty">${message}</td></tr>`;
+  return `<tr><td colspan="33" class="table-empty">${message}</td></tr>`;
 }
 
 function isRestrictedRecord(record) {
@@ -753,6 +812,7 @@ function activeRecords() {
   const utility = document.getElementById("utilityFilter").value;
   const project = document.getElementById("projectFilter").value;
   const incidentType = document.getElementById("incidentTypeFilter").value;
+  const workType = document.getElementById("workTypeFilter")?.value || "";
   const banned = document.getElementById("bannedFilter").value;
 
   return state.records.filter((record) => {
@@ -764,25 +824,28 @@ function activeRecords() {
       (!utility || record.utility === utility) &&
       (!project || record.project === project) &&
       (!incidentType || record.type === incidentType) &&
+      (!workType || record.workType === workType) &&
       (!banned || record.banned === banned);
   });
 }
 
 function renderKpis() {
   const records = state.records;
+  const overdue = records.filter((r) => r.correctiveStatus === "Open" && r.reinstatement && r.reinstatement < today()).length;
   const kpis = [
-    ["Total Records", records.length, "User-entered records"],
-    ["Workers Under Review", records.filter((r) => r.access === "Under Review").length, "Needs review"],
-    ["Restricted Access Count", records.filter((r) => r.access === "Restricted").length, "Restricted or limited access"],
-    ["Banned From Site Count", records.filter((r) => r.banned === "Yes" || r.access === "Banned From Site").length, "Banned records"],
-    ["Open Corrective Actions", records.filter((r) => r.correctiveStatus === "Open").length, "Assigned or pending verification"],
-    ["High-Severity Incidents", records.filter((r) => ["High", "Critical"].includes(r.severity)).length, "High, serious, or SIF potential"],
-    ["Upcoming Review Dates", records.filter((r) => r.reinstatement && r.reinstatement !== "N/A").length, "Records with review dates"]
+    ["Total Events", records.length, "All submitted matrix records"],
+    ["Open Investigations", records.filter((r) => !["Closed", "Final Access Decision"].includes(r.investigation)).length, "Active review workload"],
+    ["SIF Potential Events", records.filter((r) => ["High", "Critical"].includes(r.sif)).length, "High or critical SIF potential"],
+    ["Restricted Workers", records.filter(isRestrictedRecord).length, "Restricted, suspended, or banned"],
+    ["Overdue Corrective Actions", overdue, "Past-due open items"],
+    ["Reinstatement Pending", records.filter((r) => ["Required", "Conditional", "Pending Review"].includes(r.reinstatementRequired) && r.returnStatus !== "Cleared").length, "Return-to-site review needed"],
+    ["Open High-Risk Work", records.filter((r) => ["Transmission Line", "Substation", "Helicopter / External Load", "Energized Work / MAD Exposure"].includes(r.workType) && r.access !== "Clear").length, "Manager attention required"]
   ];
 
   document.getElementById("kpiGrid").innerHTML = kpis
     .map(([label, value, note]) => `<article class="kpi-card"><span>${label}</span><strong>${value}</strong><em>${note}</em></article>`)
     .join("");
+  renderTrendCards(records);
 }
 
 function drawBarChart(canvasId, labels, values, colors) {
@@ -836,17 +899,51 @@ function countBy(records, field, labels) {
   return labels.map((label) => records.filter((record) => record[field] === label).length);
 }
 
+function renderTrendCards(records) {
+  const daysAgo = (days) => {
+    const date = new Date();
+    date.setDate(date.getDate() - days);
+    return date.toISOString().slice(0, 10);
+  };
+  const trendItems = [
+    ["Last 30 Days", records.filter((r) => r.date >= daysAgo(30)).length, "New events"],
+    ["Last 60 Days", records.filter((r) => r.date >= daysAgo(60)).length, "New events"],
+    ["Last 90 Days", records.filter((r) => r.date >= daysAgo(90)).length, "New events"],
+    ["Control Failures", records.filter((r) => ["Failed / Missing", "Pending Verification"].includes(r.criticalControlStatus)).length, "Needs field verification"]
+  ];
+  document.getElementById("trendCards").innerHTML = trendItems
+    .map(([label, value, note]) => `<article class="program-card"><span>${label}</span><strong>${value}</strong><em>${note}</em></article>`)
+    .join("");
+}
+
+function renderProgramPanels() {
+  const records = state.records;
+  const controlItems = ["Effective", "Failed / Missing", "Pending Verification", "Not Applicable"].map((status) => {
+    const total = records.filter((r) => r.criticalControlStatus === status).length;
+    return `<div class="summary-item"><span>${status}</span><strong>${total}</strong></div>`;
+  }).join("");
+  document.getElementById("controlsStatus").innerHTML = controlItems || emptyState("No records entered yet.");
+
+  const highRisk = records
+    .filter((r) => ["Critical", "High"].includes(r.sif) || ["Transmission Line", "Substation", "Helicopter / External Load", "Energized Work / MAD Exposure"].includes(r.workType))
+    .slice(0, 6);
+  document.getElementById("highRiskWork").innerHTML = highRisk.length ? highRisk
+    .map((r) => `<div class="compact-record"><strong>${escapeHtml(r.workType)}</strong><span>${escapeHtml(r.contractor)} | ${escapeHtml(r.project)}</span>${chip(r.access)}</div>`)
+    .join("") : emptyState("No high-risk work records entered yet.");
+}
+
 function renderCharts() {
   const records = state.records;
-  const categoryLabels = eventCategories.slice(0, 8);
-  const statusLabels = ["Under Review", "Restricted", "Suspended", "Banned From Site", "Clear", "Monitor"];
+  const workTypeLabels = workTypes.slice(0, 8);
+  const controlLabels = ["Effective", "Failed / Missing", "Pending Verification", "Not Applicable"];
   const severityLabels = ["Low", "Moderate", "High", "Critical"];
   const contractors = [...new Set(records.map((record) => record.contractor).filter(Boolean))].slice(0, 6);
 
-  drawBarChart("categoryChart", categoryLabels.map((label) => label.split(" / ")[0]), countBy(records, "type", categoryLabels), ["#2563eb", "#dc2626", "#ea580c"]);
-  drawBarChart("statusChart", statusLabels, countBy(records, "access", statusLabels), ["#2563eb", "#15803d", "#c2410c"]);
+  drawBarChart("categoryChart", workTypeLabels.map((label) => label.split(" / ")[0]), countBy(records, "workType", workTypeLabels), ["#2563eb", "#dc2626", "#ea580c"]);
+  drawBarChart("statusChart", controlLabels, countBy(records, "criticalControlStatus", controlLabels), ["#15803d", "#dc2626", "#ea580c", "#64748b"]);
   drawBarChart("repeatChart", severityLabels, countBy(records, "severity", severityLabels), ["#64748b", "#2563eb", "#ea580c", "#dc2626"]);
   drawBarChart("contractorChart", contractors.length ? contractors : ["No records"], contractors.map((contractor) => records.filter((record) => record.contractor === contractor).length), ["#2563eb", "#ea580c", "#15803d", "#64748b"]);
+  renderProgramPanels();
 }
 
 function setOptions(id, values, defaultLabel) {
@@ -866,8 +963,10 @@ function renderFilters() {
   setOptions("utilityFilter", state.records.map((r) => r.utility), "All utility customers");
   setOptions("projectFilter", state.records.map((r) => r.project), "All projects / sites");
   setOptions("incidentTypeFilter", state.records.map((r) => r.type), "All incident types");
+  setOptions("workTypeFilter", state.records.map((r) => r.workType), "All work types");
   setOptions("bannedFilter", state.records.map((r) => r.banned), "All banned statuses");
   document.getElementById("eventCategorySelect").innerHTML = eventCategories.map((category) => `<option>${category}</option>`).join("");
+  document.getElementById("workTypeSelect").innerHTML = workTypes.map((type) => `<option>${type}</option>`).join("");
 }
 
 function recordActions(record) {
@@ -881,9 +980,10 @@ function renderMatrix() {
   const records = activeRecords();
   document.getElementById("matrixBody").innerHTML = records.length ? records.map((r) => `<tr>
     <td>${escapeHtml(r.id)}</td><td><strong>${escapeHtml(r.name)}</strong></td><td>${escapeHtml(r.source)}</td><td>${escapeHtml(r.contractor)}</td><td>${escapeHtml(r.priorContractor)}</td>
-    <td>${escapeHtml(r.project)}</td><td>${escapeHtml(r.utility)}</td><td>${escapeHtml(r.jobClass)}</td><td>${escapeHtml(r.priorProject)}</td><td>${escapeHtml(r.date)}</td><td>${escapeHtml(r.type)}</td><td>${chip(r.severity)}</td>
-    <td>${chip(r.sif)}</td><td>${escapeHtml(r.investigation)}</td><td>${chip(r.evidence)}</td><td>${chip(r.access)}</td><td>${chip(r.banned)}</td><td>${escapeHtml(r.scope)}</td>
-    <td>${escapeHtml(r.action)}</td><td>${escapeHtml(r.reinstatement)}</td><td>${escapeHtml(r.authority)}</td><td>${escapeHtml(r.disposition)}</td><td>${escapeHtml(r.notes)}</td><td>${escapeHtml(r.updated)}</td><td>${recordActions(r)}</td>
+    <td>${escapeHtml(r.project)}</td><td>${escapeHtml(r.workType)}</td><td>${escapeHtml(r.utility)}</td><td>${escapeHtml(r.jobClass)}</td><td>${escapeHtml(r.priorProject)}</td><td>${escapeHtml(r.date)}</td><td>${escapeHtml(r.type)}</td><td>${chip(r.severity)}</td>
+    <td>${chip(r.sif)}</td><td>${escapeHtml(r.sifControl)}</td><td>${escapeHtml(r.investigation)}</td><td>${chip(r.evidence)}</td><td>${chip(r.access)}</td><td>${chip(r.banned)}</td><td>${escapeHtml(r.scope)}</td>
+    <td>${escapeHtml(r.action)}</td><td>${escapeHtml(r.reinstatementRequired)}</td><td>${escapeHtml(r.trainingRequired)}</td><td>${escapeHtml(r.competency)}</td><td>${escapeHtml(r.supervisorApproval)}</td><td>${escapeHtml(r.safetyApproval)}</td><td>${escapeHtml(r.returnStatus)}</td>
+    <td>${escapeHtml(r.reinstatement)}</td><td>${escapeHtml(r.authority)}</td><td>${escapeHtml(r.disposition)}</td><td>${escapeHtml(r.notes)}</td><td>${escapeHtml(r.updated)}</td><td>${recordActions(r)}</td>
   </tr>`).join("") : tableEmptyState("No records entered yet.");
 }
 
@@ -902,41 +1002,60 @@ function renderWorkflow() {
   }).join("");
 }
 
+function renderCriticalControls() {
+  const container = document.getElementById("criticalControlsList");
+  if (!container) return;
+  container.innerHTML = criticalControlsLibrary.map(([workType, control, detail]) => {
+    const related = state.records.filter((r) => r.workType === workType);
+    const failed = related.filter((r) => r.criticalControlStatus === "Failed / Missing").length;
+    return `<article class="control-card">
+      <div>
+        <strong>${escapeHtml(workType)}</strong>
+        <span>${escapeHtml(control)}</span>
+      </div>
+      <p>${escapeHtml(detail)}</p>
+      <div class="meta">Records: ${related.length} | Failed or missing: ${failed}</div>
+    </article>`;
+  }).join("");
+}
+
 function renderRecordLists() {
   const restrictedRecords = state.records.filter(isRestrictedRecord);
   document.getElementById("restrictedList").innerHTML = restrictedRecords.length ? restrictedRecords
-    .map((r) => `<div class="record-item"><div><strong>${escapeHtml(r.name)}</strong><div class="meta">${escapeHtml(r.id)} | ${escapeHtml(r.contractor)}</div></div><div>${escapeHtml(r.scope)}<div class="meta">${escapeHtml(r.action)}</div></div><div>${chip(r.access)}</div>${recordActions(r)}</div>`)
+    .map((r) => `<div class="record-item"><div><strong>${escapeHtml(r.name)}</strong><div class="meta">${escapeHtml(r.id)} | ${escapeHtml(r.contractor)} | ${escapeHtml(r.workType)}</div></div><div>${escapeHtml(r.scope)}<div class="meta">Decision: ${escapeHtml(r.authority)} | Evidence: ${escapeHtml(r.evidence)} | Reinstatement: ${escapeHtml(r.reinstatementRequired)}</div><div class="meta">${escapeHtml(r.conditionalAccessNotes || r.action)}</div></div><div>${chip(r.access)}</div>${recordActions(r)}</div>`)
     .join("") : emptyState("No records entered yet.");
 
   const reinstatementRecords = state.records.filter((r) => r.reinstatement && r.reinstatement !== "N/A").sort((a, b) => String(a.reinstatement).localeCompare(String(b.reinstatement)));
   document.getElementById("reinstatementList").innerHTML = reinstatementRecords.length ? reinstatementRecords
-    .map((r) => `<div class="record-item"><div><strong>${escapeHtml(r.name)}</strong><div class="meta">Review date ${escapeHtml(r.reinstatement)}</div></div><div>${escapeHtml(r.action)}<div class="meta">Authority: ${escapeHtml(r.authority)}</div></div><div>${chip(r.access)}</div>${recordActions(r)}</div>`)
+    .map((r) => `<div class="record-item"><div><strong>${escapeHtml(r.name)}</strong><div class="meta">Review date ${escapeHtml(r.reinstatement)} | ${escapeHtml(r.contractor)}</div></div><div>Training: ${escapeHtml(r.trainingRequired)} | Coaching: ${escapeHtml(r.coachingCompleted)} | Field observation: ${escapeHtml(r.fieldObservation)}<div class="meta">Competency: ${escapeHtml(r.competency)} | Supervisor: ${escapeHtml(r.supervisorApproval)} | Safety: ${escapeHtml(r.safetyApproval)} | Customer: ${escapeHtml(r.customerApproval)}</div><div class="meta">${escapeHtml(r.conditionalAccessNotes)}</div></div><div>${chip(r.returnStatus)}</div>${recordActions(r)}</div>`)
     .join("") : emptyState("No records entered yet.");
 }
 
 function renderIncidents() {
   const records = activeRecords();
   document.getElementById("incidentList").innerHTML = records.length ? records
-    .map((r) => `<div class="record-item incident-card"><div><strong>${escapeHtml(r.date)} | ${escapeHtml(r.type)}</strong><div class="meta">${escapeHtml(r.name)} | ${escapeHtml(r.contractor)} | ${escapeHtml(r.project)}</div></div><div>${escapeHtml(r.notes)}<div class="meta">Stop work: ${escapeHtml(r.stopWork)} | Removed from site: ${escapeHtml(r.removedFromSite)} | Utility restriction: ${escapeHtml(r.utilityRestriction)}</div><div class="meta">RCA: ${escapeHtml(r.rca)} | Corrective action: ${escapeHtml(r.correctiveStatus)} | Re-dispatch concern: ${escapeHtml(r.reDispatchConcern)}</div>${renderEvidenceAttachments(r)}</div><div>${chip(r.managementReview)}</div>${recordActions(r)}</div>`)
+    .map((r) => `<div class="record-item incident-card"><div><strong>${escapeHtml(r.date)} | ${escapeHtml(r.type)}</strong><div class="meta">${escapeHtml(r.name)} | ${escapeHtml(r.contractor)} | ${escapeHtml(r.workType)} | ${escapeHtml(r.project)}</div></div><div>${escapeHtml(r.notes)}<div class="meta">SIF: ${escapeHtml(r.sif)} | Control: ${escapeHtml(r.sifControl)} | Critical control: ${escapeHtml(r.criticalControlStatus)} - ${escapeHtml(r.criticalControlDetail)}</div><div class="meta">Stop work: ${escapeHtml(r.stopWork)} | Removed from site: ${escapeHtml(r.removedFromSite)} | Utility restriction: ${escapeHtml(r.utilityRestriction)}</div><div class="meta">RCA: ${escapeHtml(r.rca)} | Corrective action: ${escapeHtml(r.correctiveStatus)} | Re-dispatch concern: ${escapeHtml(r.reDispatchConcern)}</div>${renderEvidenceAttachments(r)}</div><div>${chip(r.managementReview)}</div>${recordActions(r)}</div>`)
     .join("") : emptyState("No records entered yet.");
 }
 
 function renderCorrective() {
   const records = activeRecords().filter((r) => r.correctiveStatus === "Open" || r.action || r.access === "Monitor");
   document.getElementById("correctiveList").innerHTML = records.length ? records
-    .map((r) => `<div class="record-item"><div><strong>${escapeHtml(r.action || "Corrective action pending")}</strong><div class="meta">${escapeHtml(r.name)} | Owner: ${escapeHtml(r.authority)}</div></div><div>Due / review date: ${escapeHtml(r.reinstatement)}<div class="meta">Access impact: ${escapeHtml(r.access)} | Evidence: ${escapeHtml(r.evidence)}</div></div><div>${chip(r.correctiveStatus)}</div>${recordActions(r)}</div>`)
+    .map((r) => `<div class="record-item"><div><strong>${escapeHtml(r.action || "Corrective action pending")}</strong><div class="meta">${escapeHtml(r.name)} | Owner: ${escapeHtml(r.authority)} | Linked event: ${escapeHtml(r.id)}</div></div><div>Due / review date: ${escapeHtml(r.reinstatement)}<div class="meta">Verification: ${escapeHtml(r.verificationMethod)} | Field verification: ${escapeHtml(r.fieldVerification)} | Evidence: ${escapeHtml(r.evidence)}</div><div class="meta">Access impact: ${escapeHtml(r.accessImpact || r.access)} | Closure: ${escapeHtml(r.closureApproval)}</div></div><div>${chip(r.correctiveStatus)}</div>${recordActions(r)}</div>`)
     .join("") : emptyState("No records entered yet.");
 }
 
 function renderReports() {
   const current = activeRecords();
   const items = [
-    ["Filtered records", current.length],
-    ["Under review", current.filter((r) => r.access === "Under Review").length],
-    ["Restricted or banned", current.filter(isRestrictedRecord).length],
-    ["Banned from site", current.filter((r) => r.banned === "Yes" || r.access === "Banned From Site").length],
-    ["Open corrective actions", current.filter((r) => r.correctiveStatus === "Open").length],
-    ["High or critical severity", current.filter((r) => ["High", "Critical"].includes(r.severity)).length]
+    ["Weekly Safety Summary", current.length],
+    ["Contractor Risk Summary", [...new Set(current.map((r) => r.contractor).filter(Boolean))].length],
+    ["Open Corrective Actions", current.filter((r) => r.correctiveStatus === "Open").length],
+    ["Restricted Worker Summary", current.filter(isRestrictedRecord).length],
+    ["SIF Potential Trend", current.filter((r) => ["High", "Critical"].includes(r.sif)).length],
+    ["Critical Controls Failure Summary", current.filter((r) => r.criticalControlStatus === "Failed / Missing").length],
+    ["Reinstatement Pending Report", current.filter((r) => ["Required", "Conditional", "Pending Review"].includes(r.reinstatementRequired) && r.returnStatus !== "Cleared").length],
+    ["High-Risk Work Lookahead", current.filter((r) => ["Transmission Line", "Substation", "Helicopter / External Load", "Energized Work / MAD Exposure"].includes(r.workType)).length]
   ];
   const summary = current.length ? items.map(([label, value]) => `<div class="summary-item"><span>${label}</span><strong>${value}</strong></div>`).join("") : emptyState("No records entered yet.");
   const reportRecords = state.reportRecords.length ? state.reportRecords.map((r) => `<div class="record-item"><div><strong>${escapeHtml(r.title)}</strong><div class="meta">${escapeHtml(r.date)} | ${escapeHtml(r.owner)}</div></div><div>${escapeHtml(r.notes)}</div><div>${recordReportActions(r)}</div></div>`).join("") : emptyState("No records entered yet.");
@@ -1045,6 +1164,7 @@ function renderAll() {
   renderMatrix();
   renderAlerts();
   renderWorkflow();
+  renderCriticalControls();
   renderRecordLists();
   renderIncidents();
   renderCorrective();
@@ -1075,13 +1195,18 @@ function blankRecord(overrides = {}) {
     name: overrides.name || "",
     source: overrides.source || "",
     contractor: overrides.contractor || "",
+    supervisor: overrides.supervisor || "",
     priorContractor: overrides.priorContractor || "",
     project: overrides.project || "",
     priorProject: overrides.priorProject || "",
     date: overrides.date || today(),
+    workType: overrides.workType || workTypes[0],
     type: overrides.type || eventCategories[0],
     severity: overrides.severity || "Moderate",
     sif: overrides.sif || "Moderate",
+    sifControl: overrides.sifControl || "Needs Review",
+    criticalControlStatus: overrides.criticalControlStatus || "Pending Verification",
+    criticalControlDetail: overrides.criticalControlDetail || "",
     investigation: overrides.investigation || "Event Reported",
     evidence: overrides.evidence || "Partial",
     access: overrides.access || "Under Review",
@@ -1101,6 +1226,20 @@ function blankRecord(overrides = {}) {
     utilityRestriction: overrides.utilityRestriction || "No",
     rca: overrides.rca || "Open",
     correctiveStatus: overrides.correctiveStatus || "Open",
+    verificationMethod: overrides.verificationMethod || "Supervisor field verification",
+    fieldVerification: overrides.fieldVerification || "Required",
+    accessImpact: overrides.accessImpact || "Under review",
+    closureApproval: overrides.closureApproval || "Safety approval required",
+    reinstatementRequired: overrides.reinstatementRequired || "Pending Review",
+    trainingRequired: overrides.trainingRequired || "Pending Review",
+    coachingCompleted: overrides.coachingCompleted || "No",
+    fieldObservation: overrides.fieldObservation || "Pending",
+    competency: overrides.competency || "Pending",
+    supervisorApproval: overrides.supervisorApproval || "Pending",
+    safetyApproval: overrides.safetyApproval || "Pending",
+    customerApproval: overrides.customerApproval || "Not Required",
+    returnStatus: overrides.returnStatus || "Not Cleared",
+    conditionalAccessNotes: overrides.conditionalAccessNotes || "",
     reDispatchConcern: overrides.reDispatchConcern || "Monitor",
     managementReview: overrides.managementReview || "Active",
     submitted: true,
@@ -1134,21 +1273,29 @@ function openRecordEditor(record = null, context = "record") {
       ${field("name", "Worker / Record Name", current.name)}
       ${field("source", "Union Local / Dispatch Source", current.source)}
       ${field("contractor", "Contractor", current.contractor)}
+      ${field("supervisor", "Supervisor / Foreman", current.supervisor)}
       ${field("priorContractor", "Prior Contractor", current.priorContractor)}
       ${field("project", "Project / Site", current.project)}
       ${field("utility", "Utility Customer", current.utility)}
       ${field("jobClass", "Job Classification", current.jobClass)}
       ${field("priorProject", "Prior Project", current.priorProject)}
       ${field("date", "Event Date", current.date, "date")}
+      ${selectField("workType", "Work Type", current.workType, workTypes)}
       ${selectField("type", "Event Type", current.type, eventCategories)}
       ${selectField("severity", "Severity", current.severity, ["Low", "Moderate", "High", "Critical"])}
       ${selectField("sif", "SIF Potential", current.sif, ["Low", "Moderate", "High", "Critical"])}
+      ${selectField("sifControl", "SIF Control Category", current.sifControl, ["Controllable SIF", "Uncontrollable SIF", "Not SIF", "Needs Review"])}
+      ${selectField("criticalControlStatus", "Critical Control Status", current.criticalControlStatus, ["Effective", "Failed / Missing", "Pending Verification", "Not Applicable"])}
+      ${field("criticalControlDetail", "Critical Control Detail", current.criticalControlDetail)}
       ${selectField("investigation", "Investigation Status", current.investigation, ["Event Reported", "Under Review", "Evidence Collected", "Contractor Response Requested", "Safety Review Completed", "Final Access Decision", "Corrective Action Assigned", "Closed"])}
-      ${selectField("evidence", "Evidence Status", current.evidence, ["None", "Partial", "Complete"])}
+      ${selectField("evidence", "Evidence Status", current.evidence, ["None", "Partial", "Complete", "Pending Upload"])}
       ${selectField("access", "Access Status", current.access, ["Under Review", "Clear", "Monitor", "Restricted", "Suspended", "Banned From Site"])}
       ${selectField("banned", "Banned From Site", current.banned, ["No", "Yes"])}
       ${field("scope", "Restriction Scope", current.scope)}
       ${field("action", "Required Corrective Action", current.action)}
+      ${selectField("verificationMethod", "Verification Method", current.verificationMethod, ["Supervisor field verification", "Safety observation", "Training record review", "Crew stand-down", "Procedure revision", "Contractor management review"])}
+      ${selectField("fieldVerification", "Field Verification Required", current.fieldVerification, ["Required", "Completed", "Not Required"])}
+      ${selectField("accessImpact", "Access Impact", current.accessImpact, ["Under review", "No access impact", "Project restricted", "Site restricted", "Utility customer restricted", "Fully banned"])}
       ${field("reinstatement", "Review Date", current.reinstatement, "date")}
       ${field("authority", "Decision Authority / Owner", current.authority)}
       ${selectField("disposition", "Final Disposition", current.disposition, ["Pending", "Unsubstantiated", "Substantiated", "Closed"])}
@@ -1157,9 +1304,20 @@ function openRecordEditor(record = null, context = "record") {
       ${selectField("utilityRestriction", "Utility Restriction", current.utilityRestriction, ["No", "Yes"])}
       ${selectField("rca", "RCA", current.rca, ["Open", "In Review", "Complete"])}
       ${selectField("correctiveStatus", "Corrective Action Status", current.correctiveStatus, ["Open", "In Progress", "Verified", "Closed"])}
+      ${selectField("reinstatementRequired", "Reinstatement Required", current.reinstatementRequired, ["Required", "Conditional", "Pending Review", "Not Required"])}
+      ${selectField("trainingRequired", "Training Required", current.trainingRequired, ["Required", "Completed", "Pending Review", "Not Required"])}
+      ${selectField("coachingCompleted", "Coaching Completed", current.coachingCompleted, ["No", "Yes", "Not Required"])}
+      ${selectField("fieldObservation", "Field Observation", current.fieldObservation, ["Pending", "Completed", "Not Required"])}
+      ${selectField("competency", "Competency Verification", current.competency, ["Pending", "Verified", "Not Required"])}
+      ${selectField("supervisorApproval", "Supervisor Approval", current.supervisorApproval, ["Pending", "Approved", "Denied", "Not Required"])}
+      ${selectField("safetyApproval", "Safety Approval", current.safetyApproval, ["Pending", "Approved", "Denied", "Not Required"])}
+      ${selectField("customerApproval", "Customer Approval", current.customerApproval, ["Not Required", "Pending", "Approved", "Denied"])}
+      ${selectField("returnStatus", "Return-to-Site Status", current.returnStatus, ["Not Cleared", "Conditional", "Cleared", "Denied"])}
+      ${field("closureApproval", "Closure Approval", current.closureApproval)}
       ${selectField("reDispatchConcern", "Re-dispatch Concern", current.reDispatchConcern, ["No", "Monitor", "Yes"])}
       ${selectField("managementReview", "Management Review", current.managementReview, ["Active", "Pending", "Complete"])}
     </div>
+    <label class="wide-label">Conditional Access Notes<textarea name="conditionalAccessNotes">${escapeHtml(current.conditionalAccessNotes)}</textarea></label>
     <label class="wide-label">Notes<textarea name="notes">${escapeHtml(current.notes)}</textarea></label>
     <div class="editor-actions"><button class="primary-btn" type="submit">Save</button><button class="ghost-btn" type="button" id="cancelEditor">Cancel</button></div>
   </form>`;
@@ -1354,6 +1512,143 @@ async function deleteRole(id) {
   }
 }
 
+function buildDemoRecords() {
+  const scenarios = [
+    ["Missed transformer cutout before conductor transfer.", "Missed Cutout / Incomplete Isolation", "Transformer / Padmount / Elbow Work", "Critical", "High", "Failed / Missing", "Cutout / fuse / source-load verification"],
+    ["Backfeed exposure during single-phase tap work.", "Backfeed Exposure", "Overhead Distribution", "High", "Critical", "Failed / Missing", "Backfeed identification"],
+    ["Padmount elbow flash during switching sequence.", "Padmount Elbow Flash", "Underground Distribution", "Critical", "Critical", "Failed / Missing", "Switching order / clearance verification"],
+    ["Mule tape exposure during underground cable pull.", "Underground Distribution", "Underground Distribution", "Moderate", "High", "Pending Verification", "Qualified worker verification"],
+    ["Excavator contacted overhead communication line near work zone.", "Equipment Contact with Overhead Lines", "Excavation / Civil", "High", "High", "Failed / Missing", "Spotter / observer"],
+    ["Dropped conductor near energized phase during transfer.", "Dropped Conductor / Conductor Control", "Reconductoring / Stringing", "High", "Critical", "Failed / Missing", "Minimum approach distance"],
+    ["Helicopter external-load exclusion-zone issue.", "Helicopter Load Control", "Helicopter / External Load", "High", "Critical", "Pending Verification", "Helicopter exclusion zone / communication plan"],
+    ["Substation unauthorized access boundary issue.", "Substation Access Boundary", "Substation", "Moderate", "High", "Failed / Missing", "Substation access and arc-flash boundaries"],
+    ["Repeat PPE noncompliance identified during energized work setup.", "Repeat Unsafe Conduct", "Energized Work / MAD Exposure", "High", "High", "Failed / Missing", "PPE verification"],
+    ["Stop work authority used correctly for missing grounding verification.", "Stop Work / Good Catch", "Grounding / EPZ", "Moderate", "High", "Effective", "Grounding and bonding / EPZ"],
+    ["Good catch for missing EPZ confirmation before pole transfer.", "Stop Work / Good Catch", "Pole Setting / Framing", "Moderate", "High", "Effective", "Grounding and bonding / EPZ"],
+    ["Reinstatement case after verified retraining and field observation.", "Corrective Action Assigned", "Traffic Control", "Low", "Moderate", "Effective", "Traffic control setup"]
+  ];
+  const names = ["Avery Cole", "Jordan Vale", "Taylor Reed", "Morgan Blake", "Casey Lane", "Riley Quinn", "Drew Harper", "Skyler Stone", "Rowan Pierce", "Jamie Cross", "Parker Ellis", "Kendall Brooks"];
+  const projects = ["North Loop Feeder", "Mesa 230 kV Rebuild", "Canyon Substation", "West Valley URD", "Ridge Tie Line", "Airport Road Civil", "Summit Storm Patrol", "Riverbend Padmounts"];
+  return Array.from({ length: 34 }, (_, index) => {
+    const scenario = scenarios[index % scenarios.length];
+    const contractor = contractorNames[index % contractorNames.length];
+    const severity = scenario[3];
+    const sif = scenario[4];
+    const restricted = index % 5 === 0 || severity === "Critical";
+    const dueDay = String(3 + (index % 24)).padStart(2, "0");
+    return blankRecord({
+      id: `DEMO-${String(index + 1).padStart(3, "0")}`,
+      name: names[index % names.length],
+      source: index % 3 === 0 ? "IBEW Local 769" : "Contractor dispatch",
+      contractor,
+      priorContractor: contractorNames[(index + 2) % contractorNames.length],
+      project: projects[index % projects.length],
+      priorProject: projects[(index + 3) % projects.length],
+      utility: ["Desert Grid Utility", "Mountain West Power", "Mesa Valley Energy"][index % 3],
+      jobClass: ["Journeyman Lineworker", "Apprentice Lineworker", "Equipment Operator", "Cable Splicer", "Substation Technician"][index % 5],
+      supervisor: ["Fictional Supervisor A", "Fictional Supervisor B", "Fictional Supervisor C"][index % 3],
+      date: `2026-0${(index % 6) + 1}-${String(8 + (index % 18)).padStart(2, "0")}`,
+      type: scenario[1],
+      workType: scenario[2],
+      severity,
+      sif,
+      sifControl: sif === "Critical" ? "Controllable SIF" : "Needs Review",
+      criticalControlStatus: scenario[5],
+      criticalControlDetail: scenario[6],
+      investigation: ["Under Review", "Evidence Collected", "Contractor Response Requested", "Safety Review Completed", "Corrective Action Assigned", "Closed"][index % 6],
+      evidence: ["Partial", "Complete", "Pending Upload"][index % 3],
+      access: restricted ? ["Under Review", "Restricted", "Suspended", "Banned From Site"][index % 4] : ["Clear", "Monitor"][index % 2],
+      scope: restricted ? ["Temporary pending review", "Project restricted", "Utility customer restricted", "Reinstated with conditions"][index % 4] : "No restriction pending fact review",
+      action: `Verify ${scenario[6].toLowerCase()} and document contractor response.`,
+      reinstatement: `2026-07-${dueDay}`,
+      authority: ["Safety Manager", "Operations Manager", "Contractor Oversight Lead"][index % 3],
+      repeat: index % 6 === 0,
+      banned: index % 17 === 0 ? "Yes" : "No",
+      disposition: restricted ? "Substantiated" : "Pending",
+      notes: `TEST RECORD - sanitized for prototype evaluation. ${scenario[0]}`,
+      stopWork: index % 4 === 0 ? "Yes" : "No",
+      removedFromSite: restricted ? "Yes" : "No",
+      utilityRestriction: restricted && index % 2 === 0 ? "Yes" : "No",
+      rca: index % 4 === 0 ? "Complete" : "In Review",
+      correctiveStatus: index % 7 === 0 ? "Closed" : "Open",
+      verificationMethod: ["Supervisor field verification", "Safety observation", "Training record review", "Crew stand-down"][index % 4],
+      fieldVerification: index % 4 === 0 ? "Completed" : "Required",
+      accessImpact: restricted ? "Access restriction active" : "No access impact",
+      closureApproval: index % 4 === 0 ? "Approved for closure" : "Safety approval required",
+      reinstatementRequired: restricted ? ["Required", "Conditional", "Pending Review"][index % 3] : "Not Required",
+      trainingRequired: restricted ? ["Required", "Completed", "Pending Review"][index % 3] : "Not Required",
+      coachingCompleted: index % 3 === 0 ? "Yes" : "No",
+      fieldObservation: index % 4 === 0 ? "Completed" : "Pending",
+      competency: index % 4 === 0 ? "Verified" : "Pending",
+      supervisorApproval: index % 4 === 0 ? "Approved" : "Pending",
+      safetyApproval: index % 5 === 0 ? "Approved" : "Pending",
+      customerApproval: index % 6 === 0 ? "Pending" : "Not Required",
+      returnStatus: restricted ? ["Not Cleared", "Conditional", "Cleared"][index % 3] : "Cleared",
+      conditionalAccessNotes: restricted ? "Conditional access requires documented coaching, field observation, and manager approval." : "",
+      managementReview: index % 5 === 0 ? "Complete" : "Active",
+      createdBy: currentUser?.id || "demo",
+      createdByEmail: currentUser?.email || "demo@example.invalid"
+    });
+  });
+}
+
+function buildDemoReports() {
+  const titles = [
+    "Weekly Safety Summary",
+    "Contractor Risk Summary",
+    "Open Corrective Actions",
+    "Restricted Worker Summary",
+    "SIF Potential Trend",
+    "Critical Controls Failure Summary",
+    "Reinstatement Pending Report",
+    "High-Risk Work Lookahead",
+    "Good Catch Report",
+    "Stop Work Report"
+  ];
+  return titles.map((title, index) => ({
+    id: `DEMO-RPT-${String(index + 1).padStart(2, "0")}`,
+    title,
+    date: `2026-07-${String(index + 1).padStart(2, "0")}`,
+    owner: "Safety Program Review",
+    notes: `Fictional manager-review summary for ${title.toLowerCase()}.`,
+    createdBy: currentUser?.id || "demo",
+    createdByEmail: currentUser?.email || "demo@example.invalid"
+  }));
+}
+
+function applyDemoState() {
+  const raw = localStorage.getItem(demoStorageKey);
+  if (!raw) {
+    document.body.classList.remove("demo-active");
+    return;
+  }
+  try {
+    const demo = JSON.parse(raw);
+    state.records = Array.isArray(demo.records) ? demo.records.map((record) => blankRecord(record)) : state.records;
+    state.reportRecords = Array.isArray(demo.reportRecords) ? demo.reportRecords : state.reportRecords;
+    document.body.classList.add("demo-active");
+  } catch (_error) {
+    localStorage.removeItem(demoStorageKey);
+    document.body.classList.remove("demo-active");
+  }
+}
+
+function loadDemoData() {
+  const demo = { records: buildDemoRecords(), reportRecords: buildDemoReports() };
+  localStorage.setItem(demoStorageKey, JSON.stringify(demo));
+  applyDemoState();
+  closeEditor();
+  renderAll();
+}
+
+async function resetDemoData() {
+  localStorage.removeItem(demoStorageKey);
+  document.body.classList.remove("demo-active");
+  await loadRemoteState();
+  closeEditor();
+  renderAll();
+}
+
 function submittedRecordFromForm(form) {
   const data = Object.fromEntries(new FormData(form).entries());
   const accessByAction = {
@@ -1370,11 +1665,28 @@ function submittedRecordFromForm(form) {
     name: data.workerName.trim() || "Name pending review",
     source: data.source || "Intake Form",
     contractor: data.contractor || "",
+    supervisor: data.supervisor || "",
     project: data.project || "",
+    utility: data.utility || "",
     date: data.eventDate || today(),
+    workType: data.workType || workTypes[0],
     type: data.eventCategory,
     severity: data.severity,
     sif: data.sif,
+    sifControl: data.sifControl || "Needs Review",
+    criticalControlStatus: data.criticalControlStatus || "Pending Verification",
+    criticalControlDetail: data.criticalControlDetail || "",
+    investigation: data.investigation || "Under Review",
+    evidence: data.evidence || "Partial",
+    action: data.correctiveRequired === "Yes" ? `Corrective action required for ${data.criticalControlDetail || data.eventCategory}` : "",
+    correctiveStatus: data.correctiveRequired === "No" ? "Closed" : "Open",
+    reinstatementRequired: data.reinstatementRequired || "Pending Review",
+    trainingRequired: data.reinstatementRequired === "Required" ? "Required" : "Pending Review",
+    competency: data.reinstatementRequired === "Required" ? "Pending" : "Not Required",
+    supervisorApproval: data.reinstatementRequired === "Not Required" ? "Not Required" : "Pending",
+    safetyApproval: data.reinstatementRequired === "Not Required" ? "Not Required" : "Pending",
+    returnStatus: data.reinstatementRequired === "Not Required" ? "Cleared" : "Not Cleared",
+    accessImpact: scope,
     access,
     scope,
     disposition,
@@ -1421,6 +1733,7 @@ async function clearLocalRecords() {
   if (!confirmed) return;
   localStorage.removeItem(storageKey);
   oldStorageKeys.forEach((key) => localStorage.removeItem(key));
+  localStorage.removeItem(demoStorageKey);
   Object.keys(localStorage)
     .filter((key) => key.toLowerCase().includes("safetyaccess"))
     .forEach((key) => localStorage.removeItem(key));
@@ -1572,14 +1885,14 @@ async function init() {
   document.querySelectorAll("[data-page], [data-page-link]").forEach((button) => {
     button.addEventListener("click", () => switchPage(button.dataset.page || button.dataset.pageLink));
   });
-  ["globalSearch", "statusFilter", "contractorFilter", "severityFilter", "utilityFilter", "projectFilter", "incidentTypeFilter", "bannedFilter"].forEach((id) => document.getElementById(id).addEventListener("input", () => {
+  ["globalSearch", "statusFilter", "contractorFilter", "severityFilter", "utilityFilter", "projectFilter", "incidentTypeFilter", "workTypeFilter", "bannedFilter"].forEach((id) => document.getElementById(id).addEventListener("input", () => {
     renderMatrix();
     renderIncidents();
     renderCorrective();
     renderReports();
   }));
   document.getElementById("clearFilters").addEventListener("click", () => {
-    ["statusFilter", "contractorFilter", "severityFilter", "utilityFilter", "projectFilter", "incidentTypeFilter", "bannedFilter"].forEach((id) => {
+    ["statusFilter", "contractorFilter", "severityFilter", "utilityFilter", "projectFilter", "incidentTypeFilter", "workTypeFilter", "bannedFilter"].forEach((id) => {
       document.getElementById(id).value = "";
     });
     document.getElementById("globalSearch").value = "";
@@ -1598,6 +1911,8 @@ async function init() {
   });
   document.getElementById("reportPdfExport").addEventListener("click", () => window.print());
   document.getElementById("printReport").addEventListener("click", () => window.print());
+  document.getElementById("loadDemoData").addEventListener("click", loadDemoData);
+  document.getElementById("resetDemoData").addEventListener("click", resetDemoData);
   document.getElementById("addWorker").addEventListener("click", () => openRecordEditor(blankRecord({ source: "Manual Worker Matrix Entry" }), "Manual Matrix Entry / Backfill Record"));
   document.getElementById("appLogoutBtn").addEventListener("click", logoutAccessGate);
   document.getElementById("intakeForm").addEventListener("submit", submitForReview);

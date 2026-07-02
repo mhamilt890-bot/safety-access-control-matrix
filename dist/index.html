@@ -6,7 +6,7 @@
     <title>Safety Access Control Matrix</title>
     <link rel="stylesheet" href="styles.css" />
   </head>
-  <body class="access-locked">
+  <body class="access-locked auth-locked">
     <section class="access-gate" id="accessGate" aria-labelledby="accessGateTitle">
       <form class="access-card" id="accessGateForm">
         <div class="brand access-brand">
@@ -23,6 +23,25 @@
         <div class="access-error" id="accessGateMessage" role="alert"></div>
       </form>
     </section>
+    <section class="auth-gate" id="authGate" aria-labelledby="authGateTitle" aria-hidden="true">
+      <div class="access-card" id="authGateContent">
+        <div class="brand access-brand">
+          <div class="brand-mark">SA</div>
+          <div>
+            <strong>Safety Access</strong>
+            <span>Control Matrix</span>
+          </div>
+        </div>
+        <h1 id="authGateTitle">Account Login Required</h1>
+        <p>Sign in with an approved company account before dashboard data is visible.</p>
+        <form id="authGateForm">
+          <label>Email<input id="authGateEmail" type="email" autocomplete="email" required /></label>
+          <label>Password<input id="authGatePassword" type="password" autocomplete="current-password" required /></label>
+          <button class="primary-btn" type="submit">Sign In</button>
+        </form>
+        <div class="access-error" id="authGateMessage" role="alert"></div>
+      </div>
+    </section>
     <div class="app-shell" id="appShell" aria-hidden="true">
       <aside class="sidebar">
         <div class="brand">
@@ -35,11 +54,14 @@
         <nav class="nav-list" aria-label="Main navigation">
           <button class="nav-item active" data-page="dashboard">Dashboard</button>
           <button class="nav-item" data-page="matrix">Worker Matrix</button>
+          <button class="nav-item" data-page="controls">Critical Controls</button>
           <button class="nav-item" data-page="incidents">Incident Records</button>
           <button class="nav-item" data-page="restricted">Restricted / Banned List</button>
+          <button class="nav-item" data-page="reinstatement">Reinstatement</button>
           <button class="nav-item" data-page="corrective">Corrective Actions</button>
           <button class="nav-item" data-page="reports">Reports</button>
           <button class="nav-item" data-page="admin">Settings / Roles</button>
+          <button class="nav-item permission-hidden" data-page="userApprovals" id="userApprovalsNav">Admin / User Approvals</button>
         </nav>
         <div class="sidebar-note">
           <span>Access governance</span>
@@ -64,20 +86,32 @@
           </div>
         </header>
 
+        <section class="demo-banner">
+          <div>
+            <strong>DEMO MODE — fictional utility safety data for manager review</strong>
+            <span>Use sanitized sample data only. Do not enter real employee names, injury details, exact locations, work orders, customer data, or confidential company information unless this system is formally approved for operational use.</span>
+          </div>
+          <div class="demo-actions">
+            <button class="primary-btn" id="loadDemoData" type="button">Load Demo Data</button>
+            <button class="ghost-btn" id="resetDemoData" type="button">Reset Demo Data</button>
+          </div>
+        </section>
+
         <section id="dashboard" class="page active-page">
           <div class="kpi-grid" id="kpiGrid"></div>
+          <div class="program-grid" id="trendCards"></div>
           <div class="dashboard-grid">
             <article class="panel chart-panel">
               <div class="panel-heading">
-                <h2>Serious Event Category Breakdown</h2>
+                <h2>Events by Work Type</h2>
                 <span>Last 12 months</span>
               </div>
               <canvas id="categoryChart" height="250"></canvas>
             </article>
             <article class="panel chart-panel">
               <div class="panel-heading">
-                <h2>Restriction Status Trend</h2>
-                <span>Quarterly</span>
+                <h2>Critical Controls Verification</h2>
+                <span>Effective, failed, missing, pending</span>
               </div>
               <canvas id="statusChart" height="250"></canvas>
             </article>
@@ -98,14 +132,31 @@
           </div>
           <article class="panel alert-panel">
             <div class="panel-heading">
-              <h2>High-Risk Alert Panel</h2>
-              <span>Critical SIF potential or repeat substantiated events</span>
+              <h2>High-Risk Work Activities</h2>
+              <span>Critical SIF potential, open investigations, restrictions, and repeat exposure</span>
             </div>
             <div id="alertList" class="alert-list"></div>
           </article>
+          <div class="dashboard-grid">
+            <article class="panel">
+              <div class="panel-heading">
+                <h2>Critical Controls Focus</h2>
+                <span>Manager verification snapshot</span>
+              </div>
+              <div id="controlsStatus" class="summary-list"></div>
+            </article>
+            <article class="panel">
+              <div class="panel-heading">
+                <h2>Open High-Risk Lookahead</h2>
+                <span>Upcoming work needing attention</span>
+              </div>
+              <div id="highRiskWork" class="record-list"></div>
+            </article>
+          </div>
         </section>
 
         <section id="matrix" class="page">
+          <p class="workflow-note">Worker Matrix is the access-control review and investigation tracking view. New Event submissions appear here automatically; use manual matrix entry only for backfill, corrections, or records not submitted through intake.</p>
           <div class="toolbar">
             <select id="statusFilter" aria-label="Access status filter">
               <option value="">All access statuses</option>
@@ -125,11 +176,14 @@
             <select id="incidentTypeFilter" aria-label="Incident type filter">
               <option value="">All incident types</option>
             </select>
+            <select id="workTypeFilter" aria-label="Work type filter">
+              <option value="">All work types</option>
+            </select>
             <select id="bannedFilter" aria-label="Banned status filter">
               <option value="">All banned statuses</option>
             </select>
             <button class="ghost-btn" id="clearFilters">Clear Filters</button>
-            <button class="primary-btn" id="addWorker">Add Worker</button>
+            <button class="primary-btn" id="addWorker">Manual Matrix Entry / Backfill Record</button>
           </div>
           <div class="table-shell">
             <table>
@@ -141,6 +195,7 @@
                   <th>Current Contractor</th>
                   <th>Prior Contractor</th>
                   <th>Current Project</th>
+                  <th>Work Type</th>
                   <th>Utility Customer</th>
                   <th>Job Classification</th>
                   <th>Prior Project</th>
@@ -148,12 +203,19 @@
                   <th>Event Type</th>
                   <th>Severity</th>
                   <th>SIF Potential</th>
+                  <th>SIF Control</th>
                   <th>Investigation Status</th>
                   <th>Evidence Status</th>
                   <th>Access Status</th>
                   <th>Banned From Site</th>
                   <th>Restriction Scope</th>
                   <th>Required Corrective Action</th>
+                  <th>Reinstatement Required</th>
+                  <th>Training Required</th>
+                  <th>Competency Verification</th>
+                  <th>Supervisor Approval</th>
+                  <th>Safety Approval</th>
+                  <th>Return Status</th>
                   <th>Reinstatement Review Date</th>
                   <th>Decision Authority</th>
                   <th>Final Disposition</th>
@@ -172,23 +234,40 @@
             <form class="panel intake-form" id="intakeForm">
               <div class="panel-heading">
                 <h2>Serious Event Intake</h2>
-                <span>Temporary restrictions require documented review</span>
+                <span>First report / initial event submission. Saved events automatically populate Worker Matrix as access-control records.</span>
               </div>
               <div class="form-grid">
                 <label>Worker Name<input name="workerName" placeholder="Worker name" /></label>
                 <label>Badge ID<input name="badgeId" placeholder="Badge or employee ID" /></label>
                 <label>Contractor<input name="contractor" placeholder="Contractor or company" /></label>
+                <label>Utility Customer<input name="utility" placeholder="Utility customer or client group" /></label>
+                <label>Crew / Supervisor<input name="supervisor" placeholder="Crew lead or supervisor" /></label>
                 <label>Dispatch Source<input name="source" placeholder="Union local, contractor source, or reporting source" /></label>
                 <label>Project / Site<input name="project" placeholder="Project, site, or work location" /></label>
                 <label>Event Date<input name="eventDate" type="date" /></label>
+                <label>Work Type<select name="workType" id="workTypeSelect"></select></label>
                 <label>Event Category<select name="eventCategory" id="eventCategorySelect"></select></label>
                 <label>Severity<select name="severity"><option>Critical</option><option>High</option><option>Moderate</option><option>Low</option></select></label>
                 <label>SIF Potential<select name="sif"><option>Critical</option><option>High</option><option>Moderate</option><option>Low</option></select></label>
+                <label>SIF Control Category<select name="sifControl"><option>Needs Review</option><option>Controllable SIF</option><option>Uncontrollable SIF</option><option>Not SIF</option></select></label>
+                <label>Critical Control Status<select name="criticalControlStatus"><option>Failed / Missing</option><option>Effective</option><option>Pending Verification</option><option>Not Applicable</option></select></label>
+                <label>Critical Control Detail<input name="criticalControlDetail" placeholder="Failed, missing, or effective control" /></label>
+                <label>Investigation Status<select name="investigation"><option>Event Reported</option><option>Under Review</option><option>Evidence Collected</option><option>Contractor Response Requested</option><option>Safety Review Completed</option><option>Corrective Action Assigned</option></select></label>
+                <label>Evidence Status<select name="evidence"><option>Partial</option><option>None</option><option>Complete</option><option>Pending Upload</option></select></label>
+                <label>Corrective Action Required<select name="correctiveRequired"><option>Yes</option><option>No</option><option>Pending Review</option></select></label>
+                <label>Reinstatement Path<select name="reinstatementRequired"><option>Pending Review</option><option>Required</option><option>Not Required</option><option>Conditional</option></select></label>
                 <label>Immediate Access Action<select name="accessAction"><option>Temporary Pending Review</option><option>No Restriction Pending Facts</option><option>Site-Specific Restriction</option><option>Suspended Pending Review</option><option>Banned From Site</option></select></label>
               </div>
               <label class="wide-label">Event Summary<textarea name="eventSummary" placeholder="Summarize the reported event, immediate action, known facts, and pending review items."></textarea></label>
               <div class="upload-zone">
-                <strong>Evidence Upload Placeholder</strong>
+                <label for="evidenceFiles">Evidence Upload</label>
+                <input
+                  id="evidenceFiles"
+                  name="evidenceFiles"
+                  type="file"
+                  multiple
+                  accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.csv,.txt,.rtf"
+                />
                 <span>Photos, statements, switching logs, LOTO forms, training records, and supervisor notes</span>
               </div>
               <button type="submit" class="primary-btn" id="submitForReview">Submit for Review</button>
@@ -209,6 +288,16 @@
 
         <section id="review" class="page">
           <div class="review-board" id="workflowBoard"></div>
+        </section>
+
+        <section id="controls" class="page">
+          <div class="panel">
+            <div class="panel-heading">
+              <h2>Critical Controls Library</h2>
+              <span>Required controls by utility work type</span>
+            </div>
+            <div id="criticalControlsList" class="control-library"></div>
+          </div>
         </section>
 
         <section id="incidents" class="page">
@@ -293,6 +382,17 @@
 
         <section id="admin" class="page">
           <div class="admin-grid" id="adminGrid"></div>
+        </section>
+
+        <section id="userApprovals" class="page">
+          <div class="panel">
+            <div class="panel-heading">
+              <h2>Admin / User Approvals</h2>
+              <span>Approve accounts, disable access, and assign roles</span>
+            </div>
+            <div id="userApprovalMessage" class="form-message"></div>
+            <div id="userApprovalsList" class="record-list"></div>
+          </div>
         </section>
       </main>
     </div>
