@@ -12,6 +12,11 @@ const eventCategories = [
   "Substation Access Boundary",
   "Traffic Control Exposure",
   "Stop Work / Good Catch",
+  "Generation Plant Electrical Event",
+  "Generator / Turbine Protection Event",
+  "Battery Energy Storage Exposure",
+  "Relay / Protection Misoperation",
+  "Control Room / Dispatch Communication Event",
   "Energized Work / Minimum Approach Distance",
   "Switching / Clearance / Isolation",
   "Lockout Tagout",
@@ -42,8 +47,28 @@ const workTypes = [
   "Crane / Rigging / Hoisting",
   "Helicopter / External Load",
   "Traffic Control",
-  "Storm / Emergency Response"
+  "Storm / Emergency Response",
+  "Power Generation - Gas / Thermal",
+  "Power Generation - Hydro",
+  "Power Generation - Solar / BESS",
+  "Generation Switchyard",
+  "Relay / Protection / SCADA",
+  "Control Room / Dispatch Operations"
 ];
+
+const operatingDomains = [
+  "Transmission",
+  "Distribution",
+  "Substation",
+  "Underground",
+  "Power Generation",
+  "Civil / Excavation",
+  "Helicopter / Aviation",
+  "System Operations",
+  "Contractor Access Control"
+];
+
+const programRiskTiers = ["Routine", "Elevated", "High Risk", "Critical Control Required", "Executive Review"];
 
 const contractorNames = [
   "Summit Line Services",
@@ -68,7 +93,22 @@ const criticalControlsLibrary = [
   ["Crane / Rigging / Hoisting", "Rigging inspection", "Rigging, lift plan, exclusion zone, and qualified signal/spotter roles are verified."],
   ["Helicopter / External Load", "Helicopter exclusion zone / communication plan", "Landing zone, external-load route, radio plan, and ground exclusion controls are in place."],
   ["Traffic Control", "Traffic control setup", "MUTCD-aligned setup, public protection, and spotter exposure controls are verified."],
-  ["Storm / Emergency Response", "Qualified worker verification", "Rapid-response crews are matched to task qualification, fatigue limits, and switching authority."]
+  ["Storm / Emergency Response", "Qualified worker verification", "Rapid-response crews are matched to task qualification, fatigue limits, and switching authority."],
+  ["Power Generation - Gas / Thermal", "Stored energy and pressure-system isolation", "LOTO, bleed-down, permissives, and rotating-equipment boundaries are verified before work."],
+  ["Power Generation - Hydro", "Water conveyance and mechanical isolation", "Gate position, hydraulic energy, confined access, and rescue controls are verified."],
+  ["Power Generation - Solar / BESS", "DC arc-flash and battery thermal-runaway controls", "DC isolation, fire response, ventilation, and battery monitoring controls are confirmed."],
+  ["Generation Switchyard", "Switchyard clearance and grounding", "Clearance limits, induced voltage, step-touch controls, and switching communication are verified."],
+  ["Relay / Protection / SCADA", "Protection scheme and control-point verification", "Test blocks, trip paths, communications, and control authority are confirmed before changes."],
+  ["Control Room / Dispatch Operations", "Three-part communication and hold-point control", "Switching authority, read-back, clearance boundaries, and abnormal-condition escalation are documented."]
+];
+
+const utilityProgramDomains = [
+  ["Transmission", "Line construction, reconductoring, structures, helicopters, induced voltage, and clearance work."],
+  ["Distribution", "Overhead, underground, transformers, switching, storm response, and contractor access decisions."],
+  ["Substation", "Switchyards, control houses, relay work, arc-flash boundaries, and energized yard controls."],
+  ["Power Generation", "Gas, thermal, hydro, solar, BESS, switchyards, controls, stored energy, and plant LOTO."],
+  ["Civil / Excavation", "Foundations, trenching, traffic control, utility locates, public protection, and equipment separation."],
+  ["System Operations", "Dispatch, switching, clearance administration, control room communication, and grid-event response."]
 ];
 
 const storageKey = "safetyAccessControlMatrixLocalData";
@@ -794,7 +834,7 @@ function findRoleSelect(userId) {
 }
 
 function tableEmptyState(message = "No records entered yet.") {
-  return `<tr><td colspan="33" class="table-empty">${message}</td></tr>`;
+  return `<tr><td colspan="35" class="table-empty">${message}</td></tr>`;
 }
 
 function isRestrictedRecord(record) {
@@ -813,6 +853,7 @@ function activeRecords() {
   const project = document.getElementById("projectFilter").value;
   const incidentType = document.getElementById("incidentTypeFilter").value;
   const workType = document.getElementById("workTypeFilter")?.value || "";
+  const domain = document.getElementById("domainFilter")?.value || "";
   const banned = document.getElementById("bannedFilter").value;
 
   return state.records.filter((record) => {
@@ -825,6 +866,7 @@ function activeRecords() {
       (!project || record.project === project) &&
       (!incidentType || record.type === incidentType) &&
       (!workType || record.workType === workType) &&
+      (!domain || record.operatingDomain === domain) &&
       (!banned || record.banned === banned);
   });
 }
@@ -839,7 +881,7 @@ function renderKpis() {
     ["Restricted Workers", records.filter(isRestrictedRecord).length, "Restricted, suspended, or banned"],
     ["Overdue Corrective Actions", overdue, "Past-due open items"],
     ["Reinstatement Pending", records.filter((r) => ["Required", "Conditional", "Pending Review"].includes(r.reinstatementRequired) && r.returnStatus !== "Cleared").length, "Return-to-site review needed"],
-    ["Open High-Risk Work", records.filter((r) => ["Transmission Line", "Substation", "Helicopter / External Load", "Energized Work / MAD Exposure"].includes(r.workType) && r.access !== "Clear").length, "Manager attention required"]
+    ["Open High-Risk Work", records.filter((r) => ["Transmission Line", "Substation", "Helicopter / External Load", "Energized Work / MAD Exposure", "Power Generation - Gas / Thermal", "Power Generation - Hydro", "Power Generation - Solar / BESS"].includes(r.workType) && r.access !== "Clear").length, "Manager attention required"]
   ];
 
   document.getElementById("kpiGrid").innerHTML = kpis
@@ -925,11 +967,44 @@ function renderProgramPanels() {
   document.getElementById("controlsStatus").innerHTML = controlItems || emptyState("No records entered yet.");
 
   const highRisk = records
-    .filter((r) => ["Critical", "High"].includes(r.sif) || ["Transmission Line", "Substation", "Helicopter / External Load", "Energized Work / MAD Exposure"].includes(r.workType))
+    .filter((r) => ["Critical", "High"].includes(r.sif) || ["Transmission Line", "Substation", "Helicopter / External Load", "Energized Work / MAD Exposure", "Power Generation - Gas / Thermal", "Power Generation - Hydro", "Power Generation - Solar / BESS"].includes(r.workType))
     .slice(0, 6);
   document.getElementById("highRiskWork").innerHTML = highRisk.length ? highRisk
     .map((r) => `<div class="compact-record"><strong>${escapeHtml(r.workType)}</strong><span>${escapeHtml(r.contractor)} | ${escapeHtml(r.project)}</span>${chip(r.access)}</div>`)
     .join("") : emptyState("No high-risk work records entered yet.");
+}
+
+function renderUtilityProgram() {
+  const records = state.records;
+  const domainContainer = document.getElementById("domainCommandCards");
+  if (!domainContainer) return;
+  domainContainer.innerHTML = utilityProgramDomains.map(([domain, description]) => {
+    const related = records.filter((r) => r.operatingDomain === domain || r.workType.includes(domain));
+    const critical = related.filter((r) => ["High", "Critical"].includes(r.sif) || r.programRisk === "Executive Review").length;
+    const open = related.filter((r) => !["Closed", "Final Access Decision"].includes(r.investigation)).length;
+    return `<article class="domain-card">
+      <div><strong>${escapeHtml(domain)}</strong><span>${escapeHtml(description)}</span></div>
+      <div class="domain-metrics"><b>${related.length}</b><small>Total</small><b>${critical}</b><small>SIF / exec</small><b>${open}</b><small>Open</small></div>
+    </article>`;
+  }).join("");
+
+  const generationRecords = records.filter((r) => r.operatingDomain === "Power Generation" || String(r.workType).includes("Generation") || ["Power Generation - Hydro", "Power Generation - Solar / BESS", "Relay / Protection / SCADA", "Control Room / Dispatch Operations"].includes(r.workType));
+  document.getElementById("generationReadiness").innerHTML = [
+    ["Generation Records", generationRecords.length],
+    ["Switchyard / Relay / SCADA", generationRecords.filter((r) => ["Generation Switchyard", "Relay / Protection / SCADA", "Control Room / Dispatch Operations"].includes(r.workType)).length],
+    ["Stored Energy / LOTO Focus", generationRecords.filter((r) => /LOTO|stored|pressure|hydraulic|battery|DC/i.test(`${r.criticalControlDetail} ${r.energySource}`)).length],
+    ["Open Generation Corrective Actions", generationRecords.filter((r) => r.correctiveStatus === "Open").length]
+  ].map(([label, value]) => `<div class="summary-item"><span>${label}</span><strong>${value}</strong></div>`).join("");
+
+  const escalations = records
+    .filter((r) => r.programRisk === "Executive Review" || r.sif === "Critical" || r.criticalControlStatus === "Failed / Missing" || r.access === "Banned From Site")
+    .slice(0, 8);
+  document.getElementById("executiveEscalation").innerHTML = escalations.length ? escalations.map((r) => `<div class="compact-record">
+    <strong>${escapeHtml(r.programRisk)} | ${escapeHtml(r.operatingDomain)}</strong>
+    <span>${escapeHtml(r.contractor)} | ${escapeHtml(r.workType)} | ${escapeHtml(r.project)}</span>
+    <span>${escapeHtml(r.criticalControlDetail || r.type)}</span>
+    ${chip(r.access)}
+  </div>`).join("") : emptyState("No executive escalation records entered yet.");
 }
 
 function renderCharts() {
@@ -944,6 +1019,7 @@ function renderCharts() {
   drawBarChart("repeatChart", severityLabels, countBy(records, "severity", severityLabels), ["#64748b", "#2563eb", "#ea580c", "#dc2626"]);
   drawBarChart("contractorChart", contractors.length ? contractors : ["No records"], contractors.map((contractor) => records.filter((record) => record.contractor === contractor).length), ["#2563eb", "#ea580c", "#15803d", "#64748b"]);
   renderProgramPanels();
+  renderUtilityProgram();
 }
 
 function setOptions(id, values, defaultLabel) {
@@ -964,9 +1040,12 @@ function renderFilters() {
   setOptions("projectFilter", state.records.map((r) => r.project), "All projects / sites");
   setOptions("incidentTypeFilter", state.records.map((r) => r.type), "All incident types");
   setOptions("workTypeFilter", state.records.map((r) => r.workType), "All work types");
+  setOptions("domainFilter", state.records.map((r) => r.operatingDomain), "All operating domains");
   setOptions("bannedFilter", state.records.map((r) => r.banned), "All banned statuses");
   document.getElementById("eventCategorySelect").innerHTML = eventCategories.map((category) => `<option>${category}</option>`).join("");
   document.getElementById("workTypeSelect").innerHTML = workTypes.map((type) => `<option>${type}</option>`).join("");
+  document.getElementById("operatingDomainSelect").innerHTML = operatingDomains.map((domain) => `<option>${domain}</option>`).join("");
+  document.getElementById("programRiskSelect").innerHTML = programRiskTiers.map((tier) => `<option>${tier}</option>`).join("");
 }
 
 function recordActions(record) {
@@ -980,7 +1059,7 @@ function renderMatrix() {
   const records = activeRecords();
   document.getElementById("matrixBody").innerHTML = records.length ? records.map((r) => `<tr>
     <td>${escapeHtml(r.id)}</td><td><strong>${escapeHtml(r.name)}</strong></td><td>${escapeHtml(r.source)}</td><td>${escapeHtml(r.contractor)}</td><td>${escapeHtml(r.priorContractor)}</td>
-    <td>${escapeHtml(r.project)}</td><td>${escapeHtml(r.workType)}</td><td>${escapeHtml(r.utility)}</td><td>${escapeHtml(r.jobClass)}</td><td>${escapeHtml(r.priorProject)}</td><td>${escapeHtml(r.date)}</td><td>${escapeHtml(r.type)}</td><td>${chip(r.severity)}</td>
+    <td>${escapeHtml(r.project)}</td><td>${escapeHtml(r.operatingDomain)}</td><td>${escapeHtml(r.workType)}</td><td>${chip(r.programRisk)}</td><td>${escapeHtml(r.utility)}</td><td>${escapeHtml(r.jobClass)}</td><td>${escapeHtml(r.priorProject)}</td><td>${escapeHtml(r.date)}</td><td>${escapeHtml(r.type)}</td><td>${chip(r.severity)}</td>
     <td>${chip(r.sif)}</td><td>${escapeHtml(r.sifControl)}</td><td>${escapeHtml(r.investigation)}</td><td>${chip(r.evidence)}</td><td>${chip(r.access)}</td><td>${chip(r.banned)}</td><td>${escapeHtml(r.scope)}</td>
     <td>${escapeHtml(r.action)}</td><td>${escapeHtml(r.reinstatementRequired)}</td><td>${escapeHtml(r.trainingRequired)}</td><td>${escapeHtml(r.competency)}</td><td>${escapeHtml(r.supervisorApproval)}</td><td>${escapeHtml(r.safetyApproval)}</td><td>${escapeHtml(r.returnStatus)}</td>
     <td>${escapeHtml(r.reinstatement)}</td><td>${escapeHtml(r.authority)}</td><td>${escapeHtml(r.disposition)}</td><td>${escapeHtml(r.notes)}</td><td>${escapeHtml(r.updated)}</td><td>${recordActions(r)}</td>
@@ -1200,7 +1279,11 @@ function blankRecord(overrides = {}) {
     project: overrides.project || "",
     priorProject: overrides.priorProject || "",
     date: overrides.date || today(),
+    operatingDomain: overrides.operatingDomain || "Distribution",
     workType: overrides.workType || workTypes[0],
+    assetClass: overrides.assetClass || "",
+    energySource: overrides.energySource || "",
+    programRisk: overrides.programRisk || "Elevated",
     type: overrides.type || eventCategories[0],
     severity: overrides.severity || "Moderate",
     sif: overrides.sif || "Moderate",
@@ -1280,7 +1363,11 @@ function openRecordEditor(record = null, context = "record") {
       ${field("jobClass", "Job Classification", current.jobClass)}
       ${field("priorProject", "Prior Project", current.priorProject)}
       ${field("date", "Event Date", current.date, "date")}
+      ${selectField("operatingDomain", "Operating Domain", current.operatingDomain, operatingDomains)}
       ${selectField("workType", "Work Type", current.workType, workTypes)}
+      ${field("assetClass", "Asset / Facility", current.assetClass)}
+      ${field("energySource", "Energy Source", current.energySource)}
+      ${selectField("programRisk", "Program Risk Tier", current.programRisk, programRiskTiers)}
       ${selectField("type", "Event Type", current.type, eventCategories)}
       ${selectField("severity", "Severity", current.severity, ["Low", "Moderate", "High", "Critical"])}
       ${selectField("sif", "SIF Potential", current.sif, ["Low", "Moderate", "High", "Critical"])}
@@ -1525,11 +1612,16 @@ function buildDemoRecords() {
     ["Repeat PPE noncompliance identified during energized work setup.", "Repeat Unsafe Conduct", "Energized Work / MAD Exposure", "High", "High", "Failed / Missing", "PPE verification"],
     ["Stop work authority used correctly for missing grounding verification.", "Stop Work / Good Catch", "Grounding / EPZ", "Moderate", "High", "Effective", "Grounding and bonding / EPZ"],
     ["Good catch for missing EPZ confirmation before pole transfer.", "Stop Work / Good Catch", "Pole Setting / Framing", "Moderate", "High", "Effective", "Grounding and bonding / EPZ"],
-    ["Reinstatement case after verified retraining and field observation.", "Corrective Action Assigned", "Traffic Control", "Low", "Moderate", "Effective", "Traffic control setup"]
+    ["Reinstatement case after verified retraining and field observation.", "Corrective Action Assigned", "Traffic Control", "Low", "Moderate", "Effective", "Traffic control setup"],
+    ["Generation switchyard clearance boundary discrepancy.", "Generation Plant Electrical Event", "Generation Switchyard", "High", "Critical", "Failed / Missing", "Switchyard clearance and grounding"],
+    ["Hydro unit wicket gate stored-energy isolation concern.", "Generator / Turbine Protection Event", "Power Generation - Hydro", "High", "Critical", "Pending Verification", "Water conveyance and mechanical isolation"],
+    ["BESS DC disconnect labeling issue during inspection.", "Battery Energy Storage Exposure", "Power Generation - Solar / BESS", "Moderate", "High", "Failed / Missing", "DC arc-flash and battery thermal-runaway controls"],
+    ["Relay test block configuration nearly tripped wrong feeder.", "Relay / Protection Misoperation", "Relay / Protection / SCADA", "High", "Critical", "Failed / Missing", "Protection scheme and control-point verification"],
+    ["Control room switching hold point was read back incorrectly.", "Control Room / Dispatch Communication Event", "Control Room / Dispatch Operations", "High", "High", "Pending Verification", "Three-part communication and hold-point control"]
   ];
   const names = ["Avery Cole", "Jordan Vale", "Taylor Reed", "Morgan Blake", "Casey Lane", "Riley Quinn", "Drew Harper", "Skyler Stone", "Rowan Pierce", "Jamie Cross", "Parker Ellis", "Kendall Brooks"];
-  const projects = ["North Loop Feeder", "Mesa 230 kV Rebuild", "Canyon Substation", "West Valley URD", "Ridge Tie Line", "Airport Road Civil", "Summit Storm Patrol", "Riverbend Padmounts"];
-  return Array.from({ length: 34 }, (_, index) => {
+  const projects = ["North Loop Feeder", "Mesa 230 kV Rebuild", "Canyon Substation", "West Valley URD", "Ridge Tie Line", "Airport Road Civil", "Summit Storm Patrol", "Riverbend Padmounts", "Fictional Creek Hydro", "South Mesa BESS", "Unit 4 Gas Turbine", "Control Center Desk"];
+  return Array.from({ length: 40 }, (_, index) => {
     const scenario = scenarios[index % scenarios.length];
     const contractor = contractorNames[index % contractorNames.length];
     const severity = scenario[3];
@@ -1550,6 +1642,16 @@ function buildDemoRecords() {
       date: `2026-0${(index % 6) + 1}-${String(8 + (index % 18)).padStart(2, "0")}`,
       type: scenario[1],
       workType: scenario[2],
+      operatingDomain: scenario[2].includes("Generation") || scenario[2].includes("Hydro") || scenario[2].includes("BESS") ? "Power Generation" :
+        scenario[2].includes("Transmission") || scenario[2].includes("Reconductoring") ? "Transmission" :
+        scenario[2].includes("Substation") || scenario[2].includes("Relay") ? "Substation" :
+        scenario[2].includes("Underground") ? "Underground" :
+        scenario[2].includes("Helicopter") ? "Helicopter / Aviation" :
+        scenario[2].includes("Excavation") || scenario[2].includes("Traffic") ? "Civil / Excavation" :
+        scenario[2].includes("Control Room") ? "System Operations" : "Distribution",
+      assetClass: ["Feeder", "Transmission structure", "Substation bay", "Padmount transformer", "Switchyard", "Hydro unit", "BESS container", "Control desk"][index % 8],
+      energySource: ["AC electrical", "Induced voltage", "DC battery", "Hydraulic stored energy", "Mechanical rotation", "Thermal / pressure", "Traffic / public exposure"][index % 7],
+      programRisk: severity === "Critical" || index % 9 === 0 ? "Executive Review" : ["Elevated", "High Risk", "Critical Control Required"][index % 3],
       severity,
       sif,
       sifControl: sif === "Critical" ? "Controllable SIF" : "Needs Review",
@@ -1602,6 +1704,9 @@ function buildDemoReports() {
     "Critical Controls Failure Summary",
     "Reinstatement Pending Report",
     "High-Risk Work Lookahead",
+    "Transmission / Substation Risk Review",
+    "Power Generation Readiness Review",
+    "System Operations Communication Review",
     "Good Catch Report",
     "Stop Work Report"
   ];
@@ -1669,7 +1774,11 @@ function submittedRecordFromForm(form) {
     project: data.project || "",
     utility: data.utility || "",
     date: data.eventDate || today(),
+    operatingDomain: data.operatingDomain || "Distribution",
     workType: data.workType || workTypes[0],
+    assetClass: data.assetClass || "",
+    energySource: data.energySource || "",
+    programRisk: data.programRisk || "Elevated",
     type: data.eventCategory,
     severity: data.severity,
     sif: data.sif,
@@ -1885,14 +1994,14 @@ async function init() {
   document.querySelectorAll("[data-page], [data-page-link]").forEach((button) => {
     button.addEventListener("click", () => switchPage(button.dataset.page || button.dataset.pageLink));
   });
-  ["globalSearch", "statusFilter", "contractorFilter", "severityFilter", "utilityFilter", "projectFilter", "incidentTypeFilter", "workTypeFilter", "bannedFilter"].forEach((id) => document.getElementById(id).addEventListener("input", () => {
+  ["globalSearch", "statusFilter", "contractorFilter", "severityFilter", "utilityFilter", "projectFilter", "incidentTypeFilter", "workTypeFilter", "domainFilter", "bannedFilter"].forEach((id) => document.getElementById(id).addEventListener("input", () => {
     renderMatrix();
     renderIncidents();
     renderCorrective();
     renderReports();
   }));
   document.getElementById("clearFilters").addEventListener("click", () => {
-    ["statusFilter", "contractorFilter", "severityFilter", "utilityFilter", "projectFilter", "incidentTypeFilter", "workTypeFilter", "bannedFilter"].forEach((id) => {
+    ["statusFilter", "contractorFilter", "severityFilter", "utilityFilter", "projectFilter", "incidentTypeFilter", "workTypeFilter", "domainFilter", "bannedFilter"].forEach((id) => {
       document.getElementById(id).value = "";
     });
     document.getElementById("globalSearch").value = "";

@@ -443,6 +443,66 @@ textarea {
   gap: 16px;
 }
 
+.program-command-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(280px, 0.65fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.program-command-wide {
+  grid-row: span 2;
+}
+
+.domain-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.domain-card {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid rgba(37, 99, 235, 0.18);
+  border-radius: 8px;
+  background: #f8fbff;
+}
+
+.domain-card strong,
+.domain-card span {
+  display: block;
+}
+
+.domain-card span {
+  margin-top: 5px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.domain-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}
+
+.domain-metrics b,
+.domain-metrics small {
+  display: block;
+}
+
+.domain-metrics b {
+  font-size: 20px;
+}
+
+.domain-metrics small {
+  color: var(--muted);
+  font-size: 11px;
+}
+
 .panel {
   padding: 18px;
 }
@@ -935,6 +995,7 @@ textarea {
   .kpi-grid,
   .program-grid,
   .dashboard-grid,
+  .program-command-grid,
   .notification-grid,
   .admin-grid,
   .control-library,
@@ -973,6 +1034,8 @@ textarea {
   .kpi-grid,
   .program-grid,
   .dashboard-grid,
+  .program-command-grid,
+  .domain-grid,
   .review-board,
   .notification-grid,
   .admin-grid,

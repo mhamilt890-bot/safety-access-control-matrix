@@ -53,6 +53,7 @@
         </div>
         <nav class="nav-list" aria-label="Main navigation">
           <button class="nav-item active" data-page="dashboard">Dashboard</button>
+          <button class="nav-item" data-page="program">Utility Program</button>
           <button class="nav-item" data-page="matrix">Worker Matrix</button>
           <button class="nav-item" data-page="controls">Critical Controls</button>
           <button class="nav-item" data-page="incidents">Incident Records</button>
@@ -73,7 +74,7 @@
         <header class="topbar">
           <div>
             <h1>Safety Access Control Matrix</h1>
-            <p>Preventing repeat serious safety exposure across contractor workforces through documented review, access control, and reinstatement tracking.</p>
+            <p>Utility safety operating platform for transmission, distribution, substations, underground, power generation, civil support, aviation work, system operations, and contractor access control.</p>
           </div>
           <div class="topbar-actions">
             <label class="search">
@@ -88,7 +89,7 @@
 
         <section class="demo-banner">
           <div>
-            <strong>DEMO MODE — fictional utility safety data for manager review</strong>
+            <strong>DEMO MODE - fictional utility safety data for manager review</strong>
             <span>Use sanitized sample data only. Do not enter real employee names, injury details, exact locations, work orders, customer data, or confidential company information unless this system is formally approved for operational use.</span>
           </div>
           <div class="demo-actions">
@@ -155,6 +156,32 @@
           </div>
         </section>
 
+        <section id="program" class="page">
+          <div class="program-command-grid">
+            <article class="panel program-command-wide">
+              <div class="panel-heading">
+                <h2>Utility Safety Program Command Center</h2>
+                <span>Transmission, distribution, substations, generation, civil, aviation, system operations, and contractor access</span>
+              </div>
+              <div id="domainCommandCards" class="domain-grid"></div>
+            </article>
+            <article class="panel">
+              <div class="panel-heading">
+                <h2>Generation Readiness</h2>
+                <span>Plant, switchyard, relay, BESS, hydro, and control-room exposure</span>
+              </div>
+              <div id="generationReadiness" class="summary-list"></div>
+            </article>
+            <article class="panel">
+              <div class="panel-heading">
+                <h2>Executive Escalation</h2>
+                <span>Critical controls, repeat trends, and access decisions</span>
+              </div>
+              <div id="executiveEscalation" class="record-list"></div>
+            </article>
+          </div>
+        </section>
+
         <section id="matrix" class="page">
           <p class="workflow-note">Worker Matrix is the access-control review and investigation tracking view. New Event submissions appear here automatically; use manual matrix entry only for backfill, corrections, or records not submitted through intake.</p>
           <div class="toolbar">
@@ -179,6 +206,9 @@
             <select id="workTypeFilter" aria-label="Work type filter">
               <option value="">All work types</option>
             </select>
+            <select id="domainFilter" aria-label="Operating domain filter">
+              <option value="">All operating domains</option>
+            </select>
             <select id="bannedFilter" aria-label="Banned status filter">
               <option value="">All banned statuses</option>
             </select>
@@ -195,7 +225,9 @@
                   <th>Current Contractor</th>
                   <th>Prior Contractor</th>
                   <th>Current Project</th>
+                  <th>Operating Domain</th>
                   <th>Work Type</th>
+                  <th>Risk Tier</th>
                   <th>Utility Customer</th>
                   <th>Job Classification</th>
                   <th>Prior Project</th>
@@ -245,7 +277,11 @@
                 <label>Dispatch Source<input name="source" placeholder="Union local, contractor source, or reporting source" /></label>
                 <label>Project / Site<input name="project" placeholder="Project, site, or work location" /></label>
                 <label>Event Date<input name="eventDate" type="date" /></label>
+                <label>Operating Domain<select name="operatingDomain" id="operatingDomainSelect"></select></label>
                 <label>Work Type<select name="workType" id="workTypeSelect"></select></label>
+                <label>Asset / Facility<input name="assetClass" placeholder="Line, substation, plant, switchyard, BESS, hydro unit..." /></label>
+                <label>Energy Source<input name="energySource" placeholder="AC, DC, induced, hydraulic, thermal, mechanical..." /></label>
+                <label>Program Risk Tier<select name="programRisk" id="programRiskSelect"></select></label>
                 <label>Event Category<select name="eventCategory" id="eventCategorySelect"></select></label>
                 <label>Severity<select name="severity"><option>Critical</option><option>High</option><option>Moderate</option><option>Low</option></select></label>
                 <label>SIF Potential<select name="sif"><option>Critical</option><option>High</option><option>Moderate</option><option>Low</option></select></label>
